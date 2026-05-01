@@ -1,5 +1,5 @@
 locals {
-  compute_gallery_name = coalesce(var.compute_gallery_name, "gal-${var.name}")
+  compute_gallery_name = coalesce(var.compute_gallery_name, "gal_${replace(var.name, "-", "_")}")
   # Build distribute targets - default to SharedImage if not provided
   default_gallery_image_id = "${azapi_resource.compute_gallery.id}/images/${var.compute_gallery_image_definition_name}"
   distribute = [

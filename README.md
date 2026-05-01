@@ -228,10 +228,10 @@ Default: `true`
 
 ### <a name="input_image_template_customization_steps"></a> [image\_template\_customization\_steps](#input\_image\_template\_customization\_steps)
 
-Description: A list of customization steps for the image template. Each step is a map with a `type` field.  
+Description: A list of customization steps for the image template. Each step must have a `type` field.  
 Supported types: `Shell`, `PowerShell`, `WindowsRestart`, `WindowsUpdate`, `File`.
 
-Type: `list(map(any))`
+Type: `list(any)`
 
 Default: `null`
 
