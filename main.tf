@@ -62,6 +62,52 @@ resource "azapi_resource" "gallery_image_definition" {
   update_headers         = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
 }
 
+# --- Staging Resource Group for AIB builds ---
+resource "azapi_resource" "staging_resource_group" {
+  count = var.staging_resource_group_name != null ? 1 : 0
+
+  location               = var.location
+  name                   = var.staging_resource_group_name
+  parent_id              = data.azapi_client_config.current.subscription_resource_id
+  type                   = "Microsoft.Resources/resourceGroups@2024-03-01"
+  body                   = {}
+  create_headers         = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  delete_headers         = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  read_headers           = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  response_export_values = []
+  tags                   = var.tags
+  update_headers         = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+
+  lifecycle {
+    ignore_changes = [tags]
+  }
+}
+
+# --- RBAC: Identity -> Staging RG (Contributor) ---
+resource "azapi_resource" "staging_rg_role_assignment" {
+  count = var.staging_resource_group_name != null ? 1 : 0
+
+  name      = random_uuid.staging_rg_rbac[0].result
+  parent_id = azapi_resource.staging_resource_group[0].id
+  type      = "Microsoft.Authorization/roleAssignments@2022-04-01"
+  body = {
+    properties = {
+      principalId      = azapi_resource.image_builder_identity.output.properties.principalId
+      roleDefinitionId = "${data.azapi_client_config.current.subscription_resource_id}/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c"
+      principalType    = "ServicePrincipal"
+    }
+  }
+  create_headers         = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  delete_headers         = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  read_headers           = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  response_export_values = []
+  update_headers         = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+}
+
+resource "random_uuid" "staging_rg_rbac" {
+  count = var.staging_resource_group_name != null ? 1 : 0
+}
+
 # --- RBAC: Identity -> Gallery (Contributor) ---
 resource "azapi_resource" "gallery_role_assignment" {
   name      = random_uuid.gallery_rbac.result
@@ -87,7 +133,10 @@ resource "random_uuid" "gallery_rbac" {}
 resource "time_sleep" "rbac_propagation" {
   create_duration = "${var.rbac_propagation_delay_seconds}s"
 
-  depends_on = [azapi_resource.gallery_role_assignment]
+  depends_on = [
+    azapi_resource.gallery_role_assignment,
+    azapi_resource.staging_rg_role_assignment,
+  ]
 }
 
 # --- Image Template ---
@@ -105,6 +154,7 @@ resource "azapi_resource" "image_template" {
         vmProfile             = local.vm_profile
         buildTimeoutInMinutes = var.build_timeout_in_minutes
         optimize              = { vmBoot = { state = var.optimize_vm_boot ? "Enabled" : "Disabled" } }
+        stagingResourceGroup  = var.staging_resource_group_name != null ? azapi_resource.staging_resource_group[0].id : null
       } : k => v if v != null
     }
   }
@@ -124,6 +174,7 @@ resource "azapi_resource" "image_template" {
   depends_on = [
     time_sleep.rbac_propagation,
     azapi_resource.gallery_image_definition,
+    azapi_resource.staging_rg_role_assignment,
   ]
 }
 

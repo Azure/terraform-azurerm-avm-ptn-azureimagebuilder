@@ -55,9 +55,10 @@ module "test" {
   location  = azapi_resource.resource_group.location
   name      = "aib-${random_pet.name.id}"
   parent_id = azapi_resource.resource_group.id
-  # To trigger a build, set enabled = true. Builds take 15-60+ minutes.
-  # NOTE: The subscription must allow shared key access on storage accounts
-  # created by AIB in the staging resource group.
+  # Set enabled = true to trigger a build (takes 15-60+ min).
+  # NOTE: The subscription must not have Azure Policy blocking
+  # allowSharedKeyAccess on storage accounts, as AIB creates a temporary
+  # storage account in the staging RG that requires key-based auth.
   build = {
     enabled    = false
     trigger_id = "initial-build"
@@ -70,4 +71,6 @@ module "test" {
       inline = ["sudo apt-get update", "sudo apt-get install -y curl jq"]
     }
   ]
+  # Staging RG gives AIB identity full access to its temporary build resources
+  staging_resource_group_name = "rg-${random_pet.name.id}-image-build"
 }

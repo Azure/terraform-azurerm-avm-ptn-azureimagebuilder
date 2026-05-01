@@ -248,6 +248,17 @@ variable "role_assignments" {
   nullable    = false
 }
 
+variable "staging_resource_group_name" {
+  type        = string
+  default     = null
+  description = <<DESCRIPTION
+The name of the resource group used by AIB for temporary build resources (staging VMs, storage accounts).
+If set, the module creates this resource group and grants the image builder identity Contributor access.
+This is required for builds to succeed when the subscription has restrictive storage policies.
+If null, AIB creates a random staging resource group (which may fail under restrictive policies).
+DESCRIPTION
+}
+
 variable "tags" {
   type        = map(string)
   default     = null
