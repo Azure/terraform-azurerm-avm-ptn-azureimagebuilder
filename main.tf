@@ -70,7 +70,7 @@ resource "azapi_resource" "gallery_role_assignment" {
   body = {
     properties = {
       principalId      = azapi_resource.image_builder_identity.output.properties.principalId
-      roleDefinitionId = "/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c"
+      roleDefinitionId = "${data.azapi_client_config.current.subscription_resource_id}/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c"
       principalType    = "ServicePrincipal"
     }
   }
@@ -108,13 +108,10 @@ resource "azapi_resource" "image_template" {
       } : k => v if v != null
     }
   }
-  create_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
-  delete_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
-  read_headers   = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
-  response_export_values = [
-    "properties.provisioningState",
-    "properties.lastRunStatus",
-  ]
+  create_headers            = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  delete_headers            = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  read_headers              = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  response_export_values    = []
   schema_validation_enabled = false
   tags                      = var.tags
   update_headers            = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
@@ -128,13 +125,8 @@ resource "azapi_resource" "image_template" {
     time_sleep.rbac_propagation,
     azapi_resource.gallery_image_definition,
   ]
-
-  lifecycle {
-    ignore_changes = [body]
-  }
 }
 
-# --- Build Trigger ---
 resource "terraform_data" "build_trigger" {
   count = var.build.enabled ? 1 : 0
 

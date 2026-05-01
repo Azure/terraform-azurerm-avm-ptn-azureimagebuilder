@@ -60,7 +60,7 @@ locals {
   # VM profile
   vm_profile = {
     vmSize                 = var.vm_profile.vm_size
-    osDiskSizeGB           = var.vm_profile.os_disk_size_gb
+    osDiskSizeGB           = coalesce(var.vm_profile.os_disk_size_gb, 0)
     userAssignedIdentities = [azapi_resource.image_builder_identity.id]
     vnetConfig = var.vm_profile.vnet_config != null ? {
       subnetId                  = var.vm_profile.vnet_config.subnet_id
