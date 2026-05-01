@@ -228,10 +228,10 @@ Default: `true`
 
 ### <a name="input_image_template_customization_steps"></a> [image\_template\_customization\_steps](#input\_image\_template\_customization\_steps)
 
-Description: A list of customization steps for the image template. Each step is an object with a `type` field.  
+Description: A list of customization steps for the image template. Each step is a map with a `type` field.  
 Supported types: `Shell`, `PowerShell`, `WindowsRestart`, `WindowsUpdate`, `File`.
 
-Type: `any`
+Type: `list(map(any))`
 
 Default: `null`
 
@@ -409,6 +409,14 @@ Description: The resource ID of the image template.
 ### <a name="output_image_template_name"></a> [image\_template\_name](#output\_image\_template\_name)
 
 Description: The name of the image template.
+
+### <a name="output_name"></a> [name](#output\_name)
+
+Description: The name of the primary resource (image template).
+
+### <a name="output_resource"></a> [resource](#output\_resource)
+
+Description: The full image template resource object.
 
 ### <a name="output_resource_id"></a> [resource\_id](#output\_resource\_id)
 

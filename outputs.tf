@@ -23,6 +23,16 @@ output "image_template_name" {
   value       = azapi_resource.image_template.name
 }
 
+output "name" {
+  description = "The name of the primary resource (image template)."
+  value       = azapi_resource.image_template.name
+}
+
+output "resource" {
+  description = "The full image template resource object."
+  value       = azapi_resource.image_template
+}
+
 output "resource_id" {
   description = "The resource ID of the image template (primary resource)."
   value       = azapi_resource.image_template.id

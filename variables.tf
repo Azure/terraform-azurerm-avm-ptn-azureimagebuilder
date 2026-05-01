@@ -151,12 +151,17 @@ DESCRIPTION
 }
 
 variable "image_template_customization_steps" {
-  type        = any
+  type        = list(map(any))
   default     = null
   description = <<DESCRIPTION
-A list of customization steps for the image template. Each step is an object with a `type` field.
+A list of customization steps for the image template. Each step is a map with a `type` field.
 Supported types: `Shell`, `PowerShell`, `WindowsRestart`, `WindowsUpdate`, `File`.
 DESCRIPTION
+
+  validation {
+    condition     = var.image_template_customization_steps == null || alltrue([for step in var.image_template_customization_steps : contains(["Shell", "PowerShell", "WindowsRestart", "WindowsUpdate", "File"], step.type)])
+    error_message = "Each customization step must have a 'type' field with value: Shell, PowerShell, WindowsRestart, WindowsUpdate, or File."
+  }
 }
 
 variable "image_template_distribute" {
