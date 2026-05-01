@@ -98,12 +98,14 @@ resource "azapi_resource" "image_template" {
   type      = "Microsoft.VirtualMachineImages/imageTemplates@2024-02-01"
   body = {
     properties = {
-      source                = local.image_source
-      distribute            = local.distribute
-      customize             = var.image_template_customization_steps
-      vmProfile             = local.vm_profile
-      buildTimeoutInMinutes = var.build_timeout_in_minutes
-      optimize              = { vmBoot = { state = var.optimize_vm_boot ? "Enabled" : "Disabled" } }
+      for k, v in {
+        source                = local.image_source
+        distribute            = local.distribute
+        customize             = var.image_template_customization_steps
+        vmProfile             = local.vm_profile
+        buildTimeoutInMinutes = var.build_timeout_in_minutes
+        optimize              = { vmBoot = { state = var.optimize_vm_boot ? "Enabled" : "Disabled" } }
+      } : k => v if v != null
     }
   }
   create_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
@@ -126,6 +128,10 @@ resource "azapi_resource" "image_template" {
     time_sleep.rbac_propagation,
     azapi_resource.gallery_image_definition,
   ]
+
+  lifecycle {
+    ignore_changes = [body]
+  }
 }
 
 # --- Build Trigger ---
