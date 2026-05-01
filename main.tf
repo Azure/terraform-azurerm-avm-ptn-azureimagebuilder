@@ -109,7 +109,7 @@ resource "random_uuid" "staging_rg_rbac" {
   count = var.staging_resource_group_name != null ? 1 : 0
 }
 
-# --- RBAC: Identity -> Gallery (Contributor) ---
+# --- RBAC: Identity -> Gallery (Compute Gallery Image Contributor) ---
 resource "azapi_resource" "gallery_role_assignment" {
   name      = random_uuid.gallery_rbac.result
   parent_id = azapi_resource.compute_gallery.id
@@ -117,7 +117,7 @@ resource "azapi_resource" "gallery_role_assignment" {
   body = {
     properties = {
       principalId      = azapi_resource.image_builder_identity.output.properties.principalId
-      roleDefinitionId = "${data.azapi_client_config.current.subscription_resource_id}/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c"
+      roleDefinitionId = "${data.azapi_client_config.current.subscription_resource_id}/providers/Microsoft.Authorization/roleDefinitions/85a2d0d9-2eba-4c9c-b355-11c2cc0788ab"
       principalType    = "ServicePrincipal"
     }
   }

@@ -53,27 +53,40 @@ locals {
     imageId = var.image_template_image_source.image_id
   }
   # Build the image source object for the ARM body based on type
-  image_source_platform = {
-    type      = "PlatformImage"
-    publisher = var.image_template_image_source.publisher
-    offer     = var.image_template_image_source.offer
-    sku       = var.image_template_image_source.sku
-    version   = var.image_template_image_source.version
-  }
+  image_source_platform = merge(
+    {
+      type      = "PlatformImage"
+      publisher = var.image_template_image_source.publisher
+      offer     = var.image_template_image_source.offer
+      sku       = var.image_template_image_source.sku
+      version   = var.image_template_image_source.version
+    },
+    var.image_template_image_source.plan_info != null ? {
+      planInfo = {
+        planName      = var.image_template_image_source.plan_info.plan_name
+        planProduct   = var.image_template_image_source.plan_info.plan_product
+        planPublisher = var.image_template_image_source.plan_info.plan_publisher
+      }
+    } : {}
+  )
   image_source_shared = {
     type           = "SharedImageVersion"
     imageVersionId = var.image_template_image_source.image_version_id
   }
   image_template_name = coalesce(var.image_template_name, "it-${var.name}")
-  # VM profile
+  # VM profile — filter null values to avoid sending zero defaults
   vm_profile = {
-    vmSize                 = var.vm_profile.vm_size
-    osDiskSizeGB           = coalesce(var.vm_profile.os_disk_size_gb, 0)
-    userAssignedIdentities = [azapi_resource.image_builder_identity.id]
-    vnetConfig = var.vm_profile.vnet_config != null ? {
-      subnetId                  = var.vm_profile.vnet_config.subnet_id
-      containerInstanceSubnetId = var.vm_profile.vnet_config.container_instance_subnet_id
-      proxyVmSize               = var.vm_profile.vnet_config.proxy_vm_size
-    } : null
+    for k, v in {
+      vmSize                 = var.vm_profile.vm_size
+      osDiskSizeGB           = var.vm_profile.os_disk_size_gb
+      userAssignedIdentities = [azapi_resource.image_builder_identity.id]
+      vnetConfig = var.vm_profile.vnet_config != null ? {
+        for vk, vv in {
+          subnetId                  = var.vm_profile.vnet_config.subnet_id
+          containerInstanceSubnetId = var.vm_profile.vnet_config.container_instance_subnet_id
+          proxyVmSize               = var.vm_profile.vnet_config.proxy_vm_size
+        } : vk => vv if vv != null
+      } : null
+    } : k => v if v != null
   }
 }
