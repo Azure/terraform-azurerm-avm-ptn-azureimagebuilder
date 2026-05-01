@@ -2,39 +2,47 @@ locals {
   compute_gallery_name = coalesce(var.compute_gallery_name, "gal_${replace(var.name, "-", "_")}")
   # Build distribute targets - default to SharedImage if not provided
   default_gallery_image_id = "${azapi_resource.compute_gallery.id}/images/${var.compute_gallery_image_definition_name}"
-  distribute = var.image_template_distribute != null ? [
-    for d in var.image_template_distribute : {
-      type              = d.type
-      runOutputName     = d.run_output_name
-      galleryImageId    = d.gallery_image_id
-      excludeFromLatest = d.exclude_from_latest
-      artifactTags      = d.artifact_tags
-      imageId           = d.image_id
-      location          = d.location
-      targetRegions = d.target_regions != null ? [
-        for tr in d.target_regions : {
-          name               = tr.name
-          replicaCount       = tr.replica_count
-          storageAccountType = tr.storage_account_type
-        }
-      ] : null
-      versioning = d.versioning != null ? {
-        scheme = d.versioning.scheme
-        major  = d.versioning.major
-      } : null
-    }
-    ] : [
-    {
-      type           = "SharedImage"
-      runOutputName  = "${var.name}-output"
-      galleryImageId = local.default_gallery_image_id
-      targetRegions = [{
-        name               = var.location
-        replicaCount       = 1
-        storageAccountType = "Standard_LRS"
-      }]
+  distribute = [
+    for d in local.distribute_input : {
+      for k, v in {
+        type              = d.type
+        runOutputName     = d.run_output_name
+        galleryImageId    = coalesce(d.gallery_image_id, local.default_gallery_image_id)
+        excludeFromLatest = d.exclude_from_latest
+        artifactTags      = d.artifact_tags
+        imageId           = d.image_id
+        location          = d.location
+        targetRegions = d.target_regions != null ? [
+          for tr in d.target_regions : {
+            name               = tr.name
+            replicaCount       = tr.replica_count
+            storageAccountType = tr.storage_account_type
+          }
+        ] : null
+        versioning = d.versioning != null ? {
+          scheme = d.versioning.scheme
+          major  = d.versioning.major
+        } : null
+      } : k => v if v != null
     }
   ]
+  distribute_input = coalesce(var.image_template_distribute, [
+    {
+      type             = "SharedImage"
+      run_output_name  = "${var.name}-output"
+      gallery_image_id = null
+      target_regions = [{
+        name                 = var.location
+        replica_count        = 1
+        storage_account_type = "Standard_LRS"
+      }]
+      exclude_from_latest = false
+      artifact_tags       = null
+      image_id            = null
+      location            = null
+      versioning          = null
+    }
+  ])
   image_source = (
     var.image_template_image_source.type == "PlatformImage" ? local.image_source_platform :
     var.image_template_image_source.type == "ManagedImage" ? local.image_source_managed :
