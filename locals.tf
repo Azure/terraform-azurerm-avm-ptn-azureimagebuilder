@@ -1,28 +1,31 @@
 locals {
-  compute_gallery_name = coalesce(var.compute_gallery_name, "gal_${replace(var.name, "-", "_")}")
-  # Build distribute targets - default to SharedImage if not provided
-  default_gallery_image_id = "${azapi_resource.compute_gallery.id}/images/${var.compute_gallery_image_definition_name}"
+  compute_gallery_name     = coalesce(var.compute_gallery_name, "gal_${replace(var.name, "-", "_")}")
+  default_gallery_image_id = "${azapi_resource.compute_gallery.id}/images/${local.resolved_image_definition_name}"
+  # Per-type distribute body: only SharedImage uses galleryImageId/targetRegions/versioning;
+  # ManagedImage uses imageId+location; VHD would use uri (not supported in v0.1).
   distribute = [
     for d in local.distribute_input : {
       for k, v in {
         type              = d.type
         runOutputName     = d.run_output_name
-        galleryImageId    = coalesce(d.gallery_image_id, local.default_gallery_image_id)
         excludeFromLatest = d.exclude_from_latest
         artifactTags      = d.artifact_tags
-        imageId           = d.image_id
-        location          = d.location
-        targetRegions = d.target_regions != null ? [
+        galleryImageId    = d.type == "SharedImage" ? coalesce(d.gallery_image_id, local.default_gallery_image_id) : null
+        targetRegions = d.type == "SharedImage" && d.target_regions != null ? [
           for tr in d.target_regions : {
             name               = tr.name
             replicaCount       = tr.replica_count
             storageAccountType = tr.storage_account_type
           }
         ] : null
-        versioning = d.versioning != null ? {
-          scheme = d.versioning.scheme
-          major  = d.versioning.major
+        versioning = d.type == "SharedImage" && d.versioning != null ? {
+          for vk, vv in {
+            scheme = d.versioning.scheme
+            major  = d.versioning.major
+          } : vk => vv if vv != null
         } : null
+        imageId  = d.type == "ManagedImage" ? d.image_id : null
+        location = d.type == "ManagedImage" ? d.location : null
       } : k => v if v != null
     }
   ]
@@ -74,6 +77,9 @@ locals {
     imageVersionId = var.image_template_image_source.image_version_id
   }
   image_template_name = coalesce(var.image_template_name, "it-${var.name}")
+  # Resolve image-definition name from either the map key or the explicit `.name`.
+  # The Azure Compute Gallery image path uses the resource name, not the Terraform map key.
+  resolved_image_definition_name = lookup(var.compute_gallery_image_definitions, var.compute_gallery_image_definition_name, null) != null ? var.compute_gallery_image_definitions[var.compute_gallery_image_definition_name].name : one([for k, v in var.compute_gallery_image_definitions : v.name if v.name == var.compute_gallery_image_definition_name])
   # VM profile — filter null values to avoid sending zero defaults
   vm_profile = {
     for k, v in {
@@ -89,4 +95,8 @@ locals {
       } : null
     } : k => v if v != null
   }
+  vnet_id = local.vnet_subnet_id != null ? regex("^(/subscriptions/[^/]+/resourceGroups/[^/]+/providers/Microsoft.Network/virtualNetworks/[^/]+)", local.vnet_subnet_id)[0] : null
+  # VNet subnet → parent VNet ID (subnet RBAC scope can be the subnet itself, but
+  # Network Contributor must propagate from the VNet for AIB to attach NICs).
+  vnet_subnet_id = try(var.vm_profile.vnet_config.subnet_id, null)
 }

@@ -33,6 +33,23 @@ A map of image definitions to create in the compute gallery. The map key is arbi
 - `identifier` - (Required) The image identifier (publisher, offer, sku).
 DESCRIPTION
   nullable    = false
+
+  validation {
+    condition     = alltrue([for v in var.compute_gallery_image_definitions : contains(["Linux", "Windows"], v.os_type)])
+    error_message = "Each compute_gallery_image_definitions[*].os_type must be 'Linux' or 'Windows'."
+  }
+  validation {
+    condition     = alltrue([for v in var.compute_gallery_image_definitions : contains(["Generalized", "Specialized"], v.os_state)])
+    error_message = "Each compute_gallery_image_definitions[*].os_state must be 'Generalized' or 'Specialized'."
+  }
+  validation {
+    condition     = alltrue([for v in var.compute_gallery_image_definitions : contains(["V1", "V2"], v.hyper_v_generation)])
+    error_message = "Each compute_gallery_image_definitions[*].hyper_v_generation must be 'V1' or 'V2'."
+  }
+  validation {
+    condition     = alltrue([for v in var.compute_gallery_image_definitions : contains(["x64", "Arm64"], v.architecture)])
+    error_message = "Each compute_gallery_image_definitions[*].architecture must be 'x64' or 'Arm64'."
+  }
 }
 
 variable "image_template_image_source" {
@@ -168,7 +185,7 @@ DESCRIPTION
 }
 
 variable "image_template_customization_steps" {
-  type        = list(any)
+  type        = any
   default     = null
   description = <<DESCRIPTION
 A list of customization steps for the image template. Each step must have a `type` field.
@@ -202,6 +219,19 @@ variable "image_template_distribute" {
   }))
   default     = null
   description = "Distribution targets for the image template. If null, a default SharedImage distribution to the compute gallery will be created."
+
+  validation {
+    condition     = var.image_template_distribute == null || alltrue([for d in coalesce(var.image_template_distribute, []) : contains(["SharedImage", "ManagedImage"], d.type)])
+    error_message = "Each image_template_distribute[*].type must be 'SharedImage' or 'ManagedImage' (VHD distribution is not supported in this version)."
+  }
+  validation {
+    condition     = var.image_template_distribute == null || alltrue([for d in coalesce(var.image_template_distribute, []) : d.type != "ManagedImage" || (d.image_id != null && d.location != null)])
+    error_message = "ManagedImage distribute entries require both image_id and location."
+  }
+  validation {
+    condition     = var.image_template_distribute == null || alltrue([for d in coalesce(var.image_template_distribute, []) : d.versioning == null || contains(["Latest", "Source"], d.versioning.scheme)])
+    error_message = "image_template_distribute[*].versioning.scheme must be 'Latest' or 'Source'."
+  }
 }
 
 variable "image_template_name" {
