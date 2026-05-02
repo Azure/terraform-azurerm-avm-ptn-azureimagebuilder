@@ -177,6 +177,13 @@ resource "azapi_resource" "image_template" {
     azapi_resource.gallery_image_definition,
     azapi_resource.staging_rg_role_assignment,
   ]
+
+  lifecycle {
+    precondition {
+      condition     = contains(keys(var.compute_gallery_image_definitions), var.compute_gallery_image_definition_name) || anytrue([for k, v in var.compute_gallery_image_definitions : v.name == var.compute_gallery_image_definition_name])
+      error_message = "compute_gallery_image_definition_name must match a key or name in compute_gallery_image_definitions."
+    }
+  }
 }
 
 resource "terraform_data" "build_trigger" {

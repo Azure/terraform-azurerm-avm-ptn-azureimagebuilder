@@ -292,7 +292,11 @@ Default: `null`
 
 ### <a name="input_managed_identities"></a> [managed\_identities](#input\_managed\_identities)
 
-Description: Controls the Managed Identity configuration on the compute gallery resource.
+Description: Controls the Managed Identity configuration on the compute gallery resource via the AVM interfaces module.  
+Note: The image template always uses a module-created user-assigned identity for the AIB service.
+
+- `system_assigned` - (Optional) Specifies if the System Assigned Managed Identity should be enabled on the gallery.
+- `user_assigned_resource_ids` - (Optional) Specifies a list of User Assigned Managed Identity resource IDs to be assigned to the gallery.
 
 Type:
 

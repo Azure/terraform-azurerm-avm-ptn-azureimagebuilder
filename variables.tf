@@ -68,6 +68,23 @@ DESCRIPTION
     condition     = contains(["PlatformImage", "ManagedImage", "SharedImageVersion"], var.image_template_image_source.type)
     error_message = "image_template_image_source.type must be one of: 'PlatformImage', 'ManagedImage', 'SharedImageVersion'."
   }
+  validation {
+    condition = var.image_template_image_source.type != "PlatformImage" || (
+      var.image_template_image_source.publisher != null &&
+      var.image_template_image_source.offer != null &&
+      var.image_template_image_source.sku != null &&
+      var.image_template_image_source.version != null
+    )
+    error_message = "PlatformImage source requires publisher, offer, sku, and version."
+  }
+  validation {
+    condition     = var.image_template_image_source.type != "ManagedImage" || var.image_template_image_source.image_id != null
+    error_message = "ManagedImage source requires image_id."
+  }
+  validation {
+    condition     = var.image_template_image_source.type != "SharedImageVersion" || var.image_template_image_source.image_version_id != null
+    error_message = "SharedImageVersion source requires image_version_id."
+  }
 }
 
 variable "location" {
@@ -218,7 +235,13 @@ variable "managed_identities" {
     user_assigned_resource_ids = optional(set(string), [])
   })
   default     = {}
-  description = "Controls the Managed Identity configuration on the compute gallery resource."
+  description = <<DESCRIPTION
+Controls the Managed Identity configuration on the compute gallery resource via the AVM interfaces module.
+Note: The image template always uses a module-created user-assigned identity for the AIB service.
+
+- `system_assigned` - (Optional) Specifies if the System Assigned Managed Identity should be enabled on the gallery.
+- `user_assigned_resource_ids` - (Optional) Specifies a list of User Assigned Managed Identity resource IDs to be assigned to the gallery.
+DESCRIPTION
   nullable    = false
 }
 
