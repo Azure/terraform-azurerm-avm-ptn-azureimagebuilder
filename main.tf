@@ -136,7 +136,7 @@ resource "azapi_resource" "gallery_role_assignment" {
 
 # --- RBAC: Identity -> VNet (Network Contributor), required for private builds ---
 resource "azapi_resource" "vnet_role_assignment" {
-  count = local.vnet_id != null ? 1 : 0
+  count = var.vm_profile.vnet_config != null ? 1 : 0
 
   name      = uuidv5("oid", "${local.vnet_id}-${azapi_resource.image_builder_identity.output.properties.principalId}-4d97b98b-1d4f-4787-a291-c67834d212e7")
   parent_id = local.vnet_id
