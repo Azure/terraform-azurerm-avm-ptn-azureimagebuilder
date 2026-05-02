@@ -50,6 +50,7 @@ provider "azapi" {}
 
 provider "azurerm" {
   features {}
+  storage_use_azuread = true
 }
 
 data "azapi_client_config" "current" {}
@@ -130,7 +131,7 @@ resource "azapi_resource" "assets_sa" {
     sku  = { name = "Standard_LRS" }
     kind = "StorageV2"
     properties = {
-      allowSharedKeyAccess = true
+      allowSharedKeyAccess = false
       minimumTlsVersion    = "TLS1_2"
       networkAcls          = { defaultAction = "Allow", bypass = "AzureServices" }
     }
@@ -147,12 +148,34 @@ resource "azapi_resource" "assets_container" {
   }
 }
 
+# The caller needs Storage Blob Data Contributor on the SA to upload blobs via
+# AAD auth (tenants commonly disable shared-key auth at the policy level).
+resource "azapi_resource" "caller_blob_writer" {
+  name      = uuidv5("dns", "${azapi_resource.assets_sa.id}-caller-blob-writer")
+  parent_id = azapi_resource.assets_sa.id
+  type      = "Microsoft.Authorization/roleAssignments@2022-04-01"
+  body = {
+    properties = {
+      principalId      = data.azapi_client_config.current.object_id
+      roleDefinitionId = "/subscriptions/${data.azapi_client_config.current.subscription_id}/providers/Microsoft.Authorization/roleDefinitions/ba92f5b4-2d11-453d-a403-e96b0029c9fe"
+    }
+  }
+}
+
+resource "time_sleep" "caller_blob_rbac_propagation" {
+  create_duration = "60s"
+
+  depends_on = [azapi_resource.caller_blob_writer]
+}
+
 resource "azurerm_storage_blob" "install_pwsh" {
   name                   = "Install-WindowsPowerShell.ps1"
   storage_account_name   = azapi_resource.assets_sa.name
   storage_container_name = azapi_resource.assets_container.name
   type                   = "Block"
   source                 = "${path.module}/scripts/Install-WindowsPowerShell.ps1"
+
+  depends_on = [time_sleep.caller_blob_rbac_propagation]
 }
 
 resource "azurerm_storage_blob" "init_software" {
@@ -161,6 +184,8 @@ resource "azurerm_storage_blob" "init_software" {
   storage_container_name = azapi_resource.assets_container.name
   type                   = "Block"
   source                 = "${path.module}/scripts/Initialize-WindowsSoftware.ps1"
+
+  depends_on = [time_sleep.caller_blob_rbac_propagation]
 }
 
 # --- Image builder pattern module ---
@@ -289,6 +314,7 @@ The following resources are used by this module:
 - [azapi_resource.assets_container](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource) (resource)
 - [azapi_resource.assets_sa](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource) (resource)
 - [azapi_resource.blob_reader_assignment](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource) (resource)
+- [azapi_resource.caller_blob_writer](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource) (resource)
 - [azapi_resource.resource_group](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource) (resource)
 - [azapi_resource.vnet](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource) (resource)
 - [azapi_resource_action.trigger_build](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource_action) (resource)
@@ -297,6 +323,7 @@ The following resources are used by this module:
 - [random_pet.name](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/pet) (resource)
 - [random_string.sa_suffix](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/string) (resource)
 - [time_sleep.blob_rbac_propagation](https://registry.terraform.io/providers/hashicorp/time/latest/docs/resources/sleep) (resource)
+- [time_sleep.caller_blob_rbac_propagation](https://registry.terraform.io/providers/hashicorp/time/latest/docs/resources/sleep) (resource)
 - [azapi_client_config.current](https://registry.terraform.io/providers/Azure/azapi/latest/docs/data-sources/client_config) (data source)
 
 <!-- markdownlint-disable MD013 -->
