@@ -77,10 +77,10 @@ locals {
 module "test" {
   source = "../../"
 
-  compute_gallery_image_definition_name = "win11-24h2-devops"
+  compute_gallery_image_definition_name = "windows-2022-devops"
   compute_gallery_image_definitions = {
     windows = {
-      name    = "win11-24h2-devops"
+      name    = "windows-2022-devops"
       os_type = "Windows"
       identifier = {
         publisher = "devops"
@@ -91,9 +91,9 @@ module "test" {
   }
   image_template_image_source = {
     type      = "PlatformImage"
-    publisher = "MicrosoftWindowsDesktop"
-    offer     = "Windows-11"
-    sku       = "win11-24h2-avd"
+    publisher = "MicrosoftWindowsServer"
+    offer     = "WindowsServer"
+    sku       = "2022-datacenter-azure-edition"
     version   = "latest"
   }
   location                 = azapi_resource.resource_group.location
