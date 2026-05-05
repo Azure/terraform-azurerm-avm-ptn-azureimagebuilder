@@ -248,7 +248,7 @@ list(object({
     target_regions = optional(list(object({
       name                 = string
       replica_count        = optional(number, 1)
-      storage_account_type = optional(string, "Standard_LRS")
+      storage_account_type = optional(string, "Standard_ZRS")
     })), null)
     exclude_from_latest = optional(bool, false)
     artifact_tags       = optional(map(string), null)

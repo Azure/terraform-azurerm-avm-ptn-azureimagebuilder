@@ -37,7 +37,7 @@ locals {
       target_regions = [{
         name                 = var.location
         replica_count        = 1
-        storage_account_type = "Standard_LRS"
+        storage_account_type = "Standard_ZRS"
       }]
       exclude_from_latest = false
       artifact_tags       = null
