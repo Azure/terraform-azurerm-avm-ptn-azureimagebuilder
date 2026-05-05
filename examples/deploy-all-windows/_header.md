@@ -13,4 +13,4 @@ What this example deploys:
 - The image builder pattern module (gallery + identity + image template)
 
 The image template includes inline PowerShell and restart customization steps
-that run when a build is triggered.
+that run during the image build triggered by Terraform apply.

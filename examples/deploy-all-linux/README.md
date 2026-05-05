@@ -15,7 +15,7 @@ What this example deploys:
 - The image builder pattern module (gallery + identity + image template)
 
 The image template includes an inline shell customization step that writes a
-marker file when a build is triggered.
+marker file during the image build triggered by Terraform apply.
 
 ```hcl
 terraform {
@@ -119,7 +119,7 @@ module "test" {
   location         = azapi_resource.resource_group.location
   name             = "aib-${random_pet.name.id}"
   parent_id        = azapi_resource.resource_group.id
-  build            = { enabled = false }
+  build            = { enabled = true }
   enable_telemetry = var.enable_telemetry
   image_template_customization_steps = [
     {

@@ -99,7 +99,7 @@ module "test" {
   location         = azapi_resource.resource_group.location
   name             = "aib-${random_pet.name.id}"
   parent_id        = azapi_resource.resource_group.id
-  build            = { enabled = false }
+  build            = { enabled = true }
   enable_telemetry = var.enable_telemetry
   image_template_customization_steps = [
     {

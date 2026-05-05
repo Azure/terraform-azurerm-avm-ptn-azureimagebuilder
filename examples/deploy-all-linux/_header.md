@@ -13,4 +13,4 @@ What this example deploys:
 - The image builder pattern module (gallery + identity + image template)
 
 The image template includes an inline shell customization step that writes a
-marker file when a build is triggered.
+marker file during the image build triggered by Terraform apply.
