@@ -197,6 +197,11 @@ resource "azapi_resource" "image_template" {
     type         = "UserAssigned"
     identity_ids = [azapi_resource.image_builder_identity.id]
   }
+  timeouts {
+    create = "30m"
+    delete = "30m"
+    update = "30m"
+  }
 
   depends_on = [
     time_sleep.rbac_propagation,

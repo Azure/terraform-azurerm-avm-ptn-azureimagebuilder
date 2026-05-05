@@ -96,10 +96,9 @@ module "test" {
     sku       = "22_04-lts-gen2"
     version   = "latest"
   }
-  location  = azapi_resource.resource_group.location
-  name      = "aib-${random_pet.name.id}"
-  parent_id = azapi_resource.resource_group.id
-  # Caller owns the build trigger so it fires after the assets RBAC propagates.
+  location         = azapi_resource.resource_group.location
+  name             = "aib-${random_pet.name.id}"
+  parent_id        = azapi_resource.resource_group.id
   build            = { enabled = false }
   enable_telemetry = var.enable_telemetry
   image_template_customization_steps = [
@@ -119,17 +118,4 @@ module "test" {
       container_instance_subnet_id = local.aci_subnet_id
     }
   }
-}
-
-resource "azapi_resource_action" "trigger_build" {
-  action      = "run"
-  method      = "POST"
-  resource_id = module.test.image_template_id
-  type        = "Microsoft.VirtualMachineImages/imageTemplates@2024-02-01"
-
-  timeouts {
-    create = "4h"
-  }
-
-  depends_on = [module.test]
 }

@@ -126,16 +126,3 @@ module "test" {
     }
   }
 }
-
-resource "azapi_resource_action" "trigger_build" {
-  action      = "run"
-  method      = "POST"
-  resource_id = module.test.image_template_id
-  type        = "Microsoft.VirtualMachineImages/imageTemplates@2024-02-01"
-
-  timeouts {
-    create = "6h"
-  }
-
-  depends_on = [module.test]
-}

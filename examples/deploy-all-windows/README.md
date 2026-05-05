@@ -13,10 +13,9 @@ What this example deploys:
 - Resource group
 - Virtual network with two subnets (build subnet, ACI-delegated subnet)
 - The image builder pattern module (gallery + identity + image template)
-- A build trigger that fires after the image template is ready
 
-The customizations use an inline PowerShell step to write a marker file during
-the image build, then restart the build VM.
+The image template includes inline PowerShell and restart customization steps
+that run when a build is triggered.
 
 ```hcl
 terraform {
@@ -147,19 +146,6 @@ module "test" {
     }
   }
 }
-
-resource "azapi_resource_action" "trigger_build" {
-  action      = "run"
-  method      = "POST"
-  resource_id = module.test.image_template_id
-  type        = "Microsoft.VirtualMachineImages/imageTemplates@2024-02-01"
-
-  timeouts {
-    create = "6h"
-  }
-
-  depends_on = [module.test]
-}
 ```
 
 <!-- markdownlint-disable MD033 -->
@@ -179,7 +165,6 @@ The following resources are used by this module:
 
 - [azapi_resource.resource_group](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource) (resource)
 - [azapi_resource.vnet](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource) (resource)
-- [azapi_resource_action.trigger_build](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource_action) (resource)
 - [random_pet.name](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/pet) (resource)
 
 <!-- markdownlint-disable MD013 -->

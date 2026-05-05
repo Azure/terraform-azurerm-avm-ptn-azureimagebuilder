@@ -11,7 +11,6 @@ What this example deploys:
 - Resource group
 - Virtual network with two subnets (build subnet, ACI-delegated subnet)
 - The image builder pattern module (gallery + identity + image template)
-- A build trigger that fires after the image template is ready
 
-The customizations use an inline PowerShell step to write a marker file during
-the image build, then restart the build VM.
+The image template includes inline PowerShell and restart customization steps
+that run when a build is triggered.
