@@ -10,7 +10,7 @@ What this example deploys:
 
 - Resource group
 - Virtual network with two subnets (build subnet, ACI-delegated subnet)
-- The image builder pattern module (gallery + identity + image template)
+- The image builder pattern module (gallery + identity + image template + AIB-managed staging resources)
 
 The image template includes inline PowerShell and restart customization steps
 that run during the image build triggered by Terraform apply.

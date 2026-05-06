@@ -83,9 +83,8 @@ locals {
   # VM profile — filter null values to avoid sending zero defaults
   vm_profile = {
     for k, v in {
-      vmSize                 = var.vm_profile.vm_size
-      osDiskSizeGB           = var.vm_profile.os_disk_size_gb
-      userAssignedIdentities = [azapi_resource.image_builder_identity.id]
+      vmSize       = var.vm_profile.vm_size
+      osDiskSizeGB = var.vm_profile.os_disk_size_gb
       vnetConfig = var.vm_profile.vnet_config != null ? {
         for vk, vv in {
           subnetId                  = var.vm_profile.vnet_config.subnet_id

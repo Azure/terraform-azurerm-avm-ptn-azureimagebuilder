@@ -12,7 +12,7 @@ What this example deploys:
 
 - Resource group
 - Virtual network with two subnets (build subnet, ACI-delegated subnet)
-- The image builder pattern module (gallery + identity + image template)
+- The image builder pattern module (gallery + identity + image template + AIB-managed staging resources)
 
 The image template includes inline PowerShell and restart customization steps
 that run during the image build triggered by Terraform apply.
@@ -42,7 +42,7 @@ resource "random_pet" "name" {
 # --- Resource group ---
 
 resource "azapi_resource" "resource_group" {
-  location = "eastus"
+  location = "swedencentral"
   name     = "rg-${random_pet.name.id}"
   type     = "Microsoft.Resources/resourceGroups@2024-03-01"
   body     = {}
@@ -64,6 +64,7 @@ resource "azapi_resource" "vnet" {
           properties = {
             addressPrefix                     = "10.10.0.0/24"
             privateLinkServiceNetworkPolicies = "Disabled"
+            serviceEndpoints                  = [{ service = "Microsoft.Storage" }]
           }
         },
         {
@@ -84,12 +85,8 @@ resource "azapi_resource" "vnet" {
 }
 
 locals {
-  aci_subnet_id = [
-    for s in azapi_resource.vnet.output.properties.subnets : s.id if s.name == "subnet-aci"
-  ][0]
-  build_subnet_id = [
-    for s in azapi_resource.vnet.output.properties.subnets : s.id if s.name == "subnet-build"
-  ][0]
+  aci_subnet_id   = "${azapi_resource.vnet.id}/subnets/subnet-aci"
+  build_subnet_id = "${azapi_resource.vnet.id}/subnets/subnet-build"
 }
 
 # --- Image builder pattern module ---
@@ -138,13 +135,24 @@ module "test" {
       restartTimeout = "5m"
     }
   ]
+  optimize_vm_boot = false
   vm_profile = {
-    vm_size = "Standard_D4s_v3"
+    vm_size = "Standard_D2s_v5"
     vnet_config = {
       subnet_id                    = local.build_subnet_id
       container_instance_subnet_id = local.aci_subnet_id
     }
   }
+}
+
+resource "azapi_resource_action" "delete_gallery_image_version" {
+  action      = "versions/1.0.0"
+  method      = "DELETE"
+  resource_id = "${module.test.compute_gallery_id}/images/windows-2022-devops"
+  type        = "Microsoft.Compute/galleries/images@2024-03-03"
+  when        = "destroy"
+
+  depends_on = [module.test]
 }
 ```
 
@@ -165,6 +173,7 @@ The following resources are used by this module:
 
 - [azapi_resource.resource_group](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource) (resource)
 - [azapi_resource.vnet](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource) (resource)
+- [azapi_resource_action.delete_gallery_image_version](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource_action) (resource)
 - [random_pet.name](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/pet) (resource)
 
 <!-- markdownlint-disable MD013 -->

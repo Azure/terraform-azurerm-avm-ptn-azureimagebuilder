@@ -322,7 +322,7 @@ Description: Seconds to wait after RBAC assignments before creating the image te
 
 Type: `number`
 
-Default: `120`
+Default: `300`
 
 ### <a name="input_role_assignments"></a> [role\_assignments](#input\_role\_assignments)
 

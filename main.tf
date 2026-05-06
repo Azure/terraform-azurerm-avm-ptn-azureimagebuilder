@@ -115,15 +115,15 @@ resource "azapi_resource" "staging_rg_role_assignment" {
   update_headers         = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
 }
 
-# --- RBAC: Identity -> Gallery (Compute Gallery Image Contributor) ---
+# --- RBAC: Identity -> Gallery (Contributor) ---
 resource "azapi_resource" "gallery_role_assignment" {
-  name      = uuidv5("oid", "${azapi_resource.compute_gallery.id}-${azapi_resource.image_builder_identity.output.properties.principalId}-85a2d0d9-2eba-4c9c-b355-11c2cc0788ab")
+  name      = uuidv5("oid", "${azapi_resource.compute_gallery.id}-${azapi_resource.image_builder_identity.output.properties.principalId}-b24988ac-6180-42a0-ab88-20f7382dd24c")
   parent_id = azapi_resource.compute_gallery.id
   type      = "Microsoft.Authorization/roleAssignments@2022-04-01"
   body = {
     properties = {
       principalId      = azapi_resource.image_builder_identity.output.properties.principalId
-      roleDefinitionId = "${data.azapi_client_config.current.subscription_resource_id}/providers/Microsoft.Authorization/roleDefinitions/85a2d0d9-2eba-4c9c-b355-11c2cc0788ab"
+      roleDefinitionId = "${data.azapi_client_config.current.subscription_resource_id}/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c"
       principalType    = "ServicePrincipal"
     }
   }
@@ -180,7 +180,7 @@ resource "azapi_resource" "image_template" {
         customize             = var.image_template_customization_steps
         vmProfile             = local.vm_profile
         buildTimeoutInMinutes = var.build_timeout_in_minutes
-        optimize              = { vmBoot = { state = var.optimize_vm_boot ? "Enabled" : "Disabled" } }
+        optimize              = var.optimize_vm_boot ? { vmBoot = { state = "Enabled" } } : null
         stagingResourceGroup  = var.staging_resource_group_name != null ? azapi_resource.staging_resource_group[0].id : null
       } : k => v if v != null
     }

@@ -284,7 +284,7 @@ variable "optimize_vm_boot" {
 
 variable "rbac_propagation_delay_seconds" {
   type        = number
-  default     = 120
+  default     = 300
   description = "Seconds to wait after RBAC assignments before creating the image template."
   nullable    = false
 }
