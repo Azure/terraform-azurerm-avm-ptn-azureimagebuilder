@@ -241,3 +241,18 @@ resource "azapi_resource_action" "trigger_build" {
     replace_triggered_by = [terraform_data.build_trigger[0]]
   }
 }
+
+resource "azapi_resource_action" "delete_gallery_image_version" {
+  for_each = local.gallery_image_version_cleanup_targets
+
+  action      = "versions/${var.build.gallery_image_version_name}"
+  method      = "DELETE"
+  resource_id = each.value.gallery_image_id
+  type        = "Microsoft.Compute/galleries/images@2024-03-03"
+  when        = "destroy"
+
+  depends_on = [
+    azapi_resource.gallery_image_definition,
+    azapi_resource_action.trigger_build,
+  ]
+}

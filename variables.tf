@@ -124,17 +124,26 @@ variable "parent_id" {
 
 variable "build" {
   type = object({
-    enabled    = optional(bool, false)
-    trigger_id = optional(string, "1")
+    cleanup_gallery_image_version_on_destroy = optional(bool, true)
+    enabled                                  = optional(bool, false)
+    gallery_image_version_name               = optional(string, "1.0.0")
+    trigger_id                               = optional(string, "1")
   })
   default     = { enabled = false }
   description = <<DESCRIPTION
 Controls whether to trigger an image build after creating the template.
 
+- `cleanup_gallery_image_version_on_destroy` - (Optional) Whether to delete SharedImage gallery image versions produced by module-triggered builds during destroy. Defaults to true.
 - `enabled` - (Optional) Whether to trigger the build. Defaults to false.
+- `gallery_image_version_name` - (Optional) The gallery image version name to delete during destroy when SharedImage cleanup is enabled. Defaults to "1.0.0".
 - `trigger_id` - (Optional) Change this value to force a new build. Defaults to "1".
 DESCRIPTION
   nullable    = false
+
+  validation {
+    condition     = can(regex("^[0-9]+\\.[0-9]+\\.[0-9]+$", var.build.gallery_image_version_name))
+    error_message = "build.gallery_image_version_name must use a semantic version format such as '1.0.0'."
+  }
 }
 
 variable "build_timeout_in_minutes" {
@@ -277,8 +286,8 @@ DESCRIPTION
 
 variable "optimize_vm_boot" {
   type        = bool
-  default     = true
-  description = "Enable VM boot optimization for the image template."
+  default     = false
+  description = "Enable VM boot optimization for the image template. This Azure Image Builder setting is region-sensitive and should only be enabled in supported regions."
   nullable    = false
 }
 

@@ -46,6 +46,12 @@ locals {
       versioning          = null
     }
   ])
+  gallery_image_version_cleanup_targets = var.build.enabled && var.build.cleanup_gallery_image_version_on_destroy ? {
+    for distribution_index, distribution in local.distribute_input : distribution_index => {
+      gallery_image_id = coalesce(distribution.gallery_image_id, local.default_gallery_image_id)
+    }
+    if distribution.type == "SharedImage"
+  } : {}
   image_source = (
     var.image_template_image_source.type == "PlatformImage" ? local.image_source_platform :
     var.image_template_image_source.type == "ManagedImage" ? local.image_source_managed :

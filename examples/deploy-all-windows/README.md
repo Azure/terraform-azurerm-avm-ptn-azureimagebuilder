@@ -135,7 +135,6 @@ module "test" {
       restartTimeout = "5m"
     }
   ]
-  optimize_vm_boot = false
   vm_profile = {
     vm_size = "Standard_D2s_v5"
     vnet_config = {
@@ -143,16 +142,6 @@ module "test" {
       container_instance_subnet_id = local.aci_subnet_id
     }
   }
-}
-
-resource "azapi_resource_action" "delete_gallery_image_version" {
-  action      = "versions/1.0.0"
-  method      = "DELETE"
-  resource_id = "${module.test.compute_gallery_id}/images/windows-2022-devops"
-  type        = "Microsoft.Compute/galleries/images@2024-03-03"
-  when        = "destroy"
-
-  depends_on = [module.test]
 }
 ```
 
@@ -173,7 +162,6 @@ The following resources are used by this module:
 
 - [azapi_resource.resource_group](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource) (resource)
 - [azapi_resource.vnet](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource) (resource)
-- [azapi_resource_action.delete_gallery_image_version](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource_action) (resource)
 - [random_pet.name](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/pet) (resource)
 
 <!-- markdownlint-disable MD013 -->

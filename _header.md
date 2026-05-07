@@ -11,8 +11,8 @@ It orchestrates the creation of a User-Assigned Managed Identity, Azure Compute 
 - Customization steps (Shell, PowerShell, WindowsRestart, WindowsUpdate, File)
 - Flexible distribution targets with region replication
 - VNet integration for private builds
-- VM boot optimization
-- Opt-in build triggering with nonce-based re-trigger support
+- Opt-in VM boot optimization for supported regions
+- Opt-in build triggering with nonce-based re-trigger support and Shared Image Gallery version cleanup on destroy
 - Managed identity with automatic RBAC wiring
 - Resource locks and role assignments via AVM interfaces module
 - AVM telemetry

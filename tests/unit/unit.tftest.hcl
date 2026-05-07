@@ -13,6 +13,13 @@ mock_provider "azapi" {
     }
   }
 
+  mock_resource "azapi_resource_action" {
+    defaults = {
+      id     = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-test/providers/Microsoft.VirtualMachineImages/imageTemplates/it-test/run"
+      output = {}
+    }
+  }
+
   mock_data "azapi_client_config" {
     defaults = {
       subscription_id          = "00000000-0000-0000-0000-000000000000"
@@ -114,6 +121,91 @@ run "no_build_by_default" {
   assert {
     condition     = length(azapi_resource_action.trigger_build) == 0
     error_message = "Build should not be triggered by default."
+  }
+
+  assert {
+    condition     = length(terraform_data.build_trigger) == 0
+    error_message = "Build trigger data should not be created by default."
+  }
+
+  assert {
+    condition     = length(azapi_resource_action.delete_gallery_image_version) == 0
+    error_message = "Gallery image version cleanup should not be created when builds are disabled."
+  }
+}
+
+run "build_enabled_triggers_build_and_cleanup" {
+  command = apply
+
+  variables {
+    build = { enabled = true }
+  }
+
+  assert {
+    condition     = length(terraform_data.build_trigger) == 1
+    error_message = "Build trigger data should be created when builds are enabled."
+  }
+
+  assert {
+    condition     = length(azapi_resource_action.trigger_build) == 1
+    error_message = "Build should be triggered when build.enabled is true."
+  }
+
+  assert {
+    condition     = length(azapi_resource_action.delete_gallery_image_version) == 1
+    error_message = "Shared Image Gallery version cleanup should be created for module-triggered builds."
+  }
+}
+
+run "build_cleanup_can_be_disabled" {
+  command = apply
+
+  variables {
+    build = {
+      cleanup_gallery_image_version_on_destroy = false
+      enabled                                  = true
+    }
+  }
+
+  assert {
+    condition     = length(azapi_resource_action.trigger_build) == 1
+    error_message = "Build should still be triggered when cleanup is disabled."
+  }
+
+  assert {
+    condition     = length(azapi_resource_action.delete_gallery_image_version) == 0
+    error_message = "Gallery image version cleanup should not be created when cleanup is disabled."
+  }
+}
+
+run "optimize_vm_boot_omitted_by_default" {
+  command = apply
+
+  assert {
+    condition     = try(azapi_resource.image_template.body.properties.optimize, null) == null
+    error_message = "VM boot optimization should be omitted by default."
+  }
+}
+
+run "optimize_vm_boot_enabled_sets_body" {
+  command = apply
+
+  variables {
+    optimize_vm_boot = true
+  }
+
+  assert {
+    condition     = azapi_resource.image_template.body.properties.optimize.vmBoot.state == "Enabled"
+    error_message = "VM boot optimization should be enabled when optimize_vm_boot is true."
+  }
+}
+
+run "gallery_rbac_uses_contributor" {
+  command = apply
+
+  assert {
+    condition     = endswith(azapi_resource.gallery_role_assignment.body.properties.roleDefinitionId, "/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c")
+    error_message = "Gallery RBAC should use the Contributor role definition."
   }
 }
 

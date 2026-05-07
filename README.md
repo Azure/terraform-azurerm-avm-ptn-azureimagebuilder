@@ -13,8 +13,8 @@ It orchestrates the creation of a User-Assigned Managed Identity, Azure Compute 
 - Customization steps (Shell, PowerShell, WindowsRestart, WindowsUpdate, File)
 - Flexible distribution targets with region replication
 - VNet integration for private builds
-- VM boot optimization
-- Opt-in build triggering with nonce-based re-trigger support
+- Opt-in VM boot optimization for supported regions
+- Opt-in build triggering with nonce-based re-trigger support and Shared Image Gallery version cleanup on destroy
 - Managed identity with automatic RBAC wiring
 - Resource locks and role assignments via AVM interfaces module
 - AVM telemetry
@@ -49,6 +49,7 @@ The following resources are used by this module:
 - [azapi_resource.staging_resource_group](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource) (resource)
 - [azapi_resource.staging_rg_role_assignment](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource) (resource)
 - [azapi_resource.vnet_role_assignment](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource) (resource)
+- [azapi_resource_action.delete_gallery_image_version](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource_action) (resource)
 - [azapi_resource_action.trigger_build](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource_action) (resource)
 - [modtm_telemetry.telemetry](https://registry.terraform.io/providers/azure/modtm/latest/docs/resources/telemetry) (resource)
 - [random_uuid.telemetry](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/uuid) (resource)
@@ -156,15 +157,19 @@ The following input variables are optional (have default values):
 
 Description: Controls whether to trigger an image build after creating the template.
 
+- `cleanup_gallery_image_version_on_destroy` - (Optional) Whether to delete SharedImage gallery image versions produced by module-triggered builds during destroy. Defaults to true.
 - `enabled` - (Optional) Whether to trigger the build. Defaults to false.
+- `gallery_image_version_name` - (Optional) The gallery image version name to delete during destroy when SharedImage cleanup is enabled. Defaults to "1.0.0".
 - `trigger_id` - (Optional) Change this value to force a new build. Defaults to "1".
 
 Type:
 
 ```hcl
 object({
-    enabled    = optional(bool, false)
-    trigger_id = optional(string, "1")
+    cleanup_gallery_image_version_on_destroy = optional(bool, true)
+    enabled                                  = optional(bool, false)
+    gallery_image_version_name               = optional(string, "1.0.0")
+    trigger_id                               = optional(string, "1")
   })
 ```
 
@@ -310,11 +315,11 @@ Default: `{}`
 
 ### <a name="input_optimize_vm_boot"></a> [optimize\_vm\_boot](#input\_optimize\_vm\_boot)
 
-Description: Enable VM boot optimization for the image template.
+Description: Enable VM boot optimization for the image template. This Azure Image Builder setting is region-sensitive and should only be enabled in supported regions.
 
 Type: `bool`
 
-Default: `true`
+Default: `false`
 
 ### <a name="input_rbac_propagation_delay_seconds"></a> [rbac\_propagation\_delay\_seconds](#input\_rbac\_propagation\_delay\_seconds)
 
