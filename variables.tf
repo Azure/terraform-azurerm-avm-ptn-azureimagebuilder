@@ -1,48 +1,167 @@
+# --- Image Template ---
+
+# --- AVM interface variables ---
+
+variable "compute_gallery_image_definition_name" {
+  type        = string
+  description = "The name of the image definition to publish the new image version to. Must match a key or name in `compute_gallery_image_definitions`."
+  nullable    = false
+}
+
+variable "compute_gallery_image_definitions" {
+  type = map(object({
+    name               = string
+    os_type            = string
+    os_state           = optional(string, "Generalized")
+    hyper_v_generation = optional(string, "V2")
+    architecture       = optional(string, "x64")
+    description        = optional(string, null)
+    identifier = object({
+      publisher = string
+      offer     = string
+      sku       = string
+    })
+  }))
+  description = <<DESCRIPTION
+A map of image definitions to create in the compute gallery. The map key is arbitrary.
+
+- `name` - (Required) The name of the image definition.
+- `os_type` - (Required) The OS type. Possible values: `Linux`, `Windows`.
+- `os_state` - (Optional) Defaults to `Generalized`.
+- `hyper_v_generation` - (Optional) Defaults to `V2`.
+- `architecture` - (Optional) Defaults to `x64`. Possible values: `x64`, `Arm64`.
+- `identifier` - (Required) The image identifier (publisher, offer, sku).
+DESCRIPTION
+  nullable    = false
+
+  validation {
+    condition     = alltrue([for v in var.compute_gallery_image_definitions : contains(["Linux", "Windows"], v.os_type)])
+    error_message = "Each compute_gallery_image_definitions[*].os_type must be 'Linux' or 'Windows'."
+  }
+  validation {
+    condition     = alltrue([for v in var.compute_gallery_image_definitions : contains(["Generalized", "Specialized"], v.os_state)])
+    error_message = "Each compute_gallery_image_definitions[*].os_state must be 'Generalized' or 'Specialized'."
+  }
+  validation {
+    condition     = alltrue([for v in var.compute_gallery_image_definitions : contains(["V1", "V2"], v.hyper_v_generation)])
+    error_message = "Each compute_gallery_image_definitions[*].hyper_v_generation must be 'V1' or 'V2'."
+  }
+  validation {
+    condition     = alltrue([for v in var.compute_gallery_image_definitions : contains(["x64", "Arm64"], v.architecture)])
+    error_message = "Each compute_gallery_image_definitions[*].architecture must be 'x64' or 'Arm64'."
+  }
+}
+
+variable "image_template_image_source" {
+  type = object({
+    type             = string
+    publisher        = optional(string, null)
+    offer            = optional(string, null)
+    sku              = optional(string, null)
+    version          = optional(string, null)
+    image_id         = optional(string, null)
+    image_version_id = optional(string, null)
+    plan_info = optional(object({
+      plan_name      = string
+      plan_product   = string
+      plan_publisher = string
+    }), null)
+  })
+  description = <<DESCRIPTION
+The image source for the image template. Must include `type` and the appropriate fields for that type.
+
+- `type` - (Required) The type of image source. Possible values: `PlatformImage`, `ManagedImage`, `SharedImageVersion`.
+- `publisher` - (Required for PlatformImage) The image publisher.
+- `offer` - (Required for PlatformImage) The image offer.
+- `sku` - (Required for PlatformImage) The image SKU.
+- `version` - (Required for PlatformImage) The image version. Use `latest` to resolve at build time.
+- `image_id` - (Required for ManagedImage) The ARM resource ID of the managed image.
+- `image_version_id` - (Required for SharedImageVersion) The ARM resource ID of the shared image version.
+- `plan_info` - (Optional, PlatformImage only) Purchase plan info for Marketplace images.
+DESCRIPTION
+  nullable    = false
+
+  validation {
+    condition     = contains(["PlatformImage", "ManagedImage", "SharedImageVersion"], var.image_template_image_source.type)
+    error_message = "image_template_image_source.type must be one of: 'PlatformImage', 'ManagedImage', 'SharedImageVersion'."
+  }
+  validation {
+    condition = var.image_template_image_source.type != "PlatformImage" || (
+      var.image_template_image_source.publisher != null &&
+      var.image_template_image_source.offer != null &&
+      var.image_template_image_source.sku != null &&
+      var.image_template_image_source.version != null
+    )
+    error_message = "PlatformImage source requires publisher, offer, sku, and version."
+  }
+  validation {
+    condition     = var.image_template_image_source.type != "ManagedImage" || var.image_template_image_source.image_id != null
+    error_message = "ManagedImage source requires image_id."
+  }
+  validation {
+    condition     = var.image_template_image_source.type != "SharedImageVersion" || var.image_template_image_source.image_version_id != null
+    error_message = "SharedImageVersion source requires image_version_id."
+  }
+}
+
 variable "location" {
   type        = string
-  description = "Azure region where the resource should be deployed."
+  description = "Azure region where the resources should be deployed."
   nullable    = false
 }
 
 variable "name" {
   type        = string
-  description = "The name of the this resource."
+  description = "The base name used for naming resources (e.g., image template, gallery)."
+  nullable    = false
+}
+
+variable "parent_id" {
+  type        = string
+  description = "The resource ID of the resource group in which to create all resources."
+  nullable    = false
+}
+
+variable "build" {
+  type = object({
+    cleanup_gallery_image_version_on_destroy = optional(bool, true)
+    enabled                                  = optional(bool, false)
+    gallery_image_version_name               = optional(string, "1.0.0")
+    trigger_id                               = optional(string, "1")
+  })
+  default     = { enabled = false }
+  description = <<DESCRIPTION
+Controls whether to trigger an image build after creating the template.
+
+- `cleanup_gallery_image_version_on_destroy` - (Optional) Whether to delete SharedImage gallery image versions produced by module-triggered builds during destroy. Defaults to true.
+- `enabled` - (Optional) Whether to trigger the build. Defaults to false.
+- `gallery_image_version_name` - (Optional) The gallery image version name to delete during destroy when SharedImage cleanup is enabled. Defaults to "1.0.0".
+- `trigger_id` - (Optional) Change this value to force a new build. Defaults to "1".
+DESCRIPTION
+  nullable    = false
 
   validation {
-    condition     = can(regex("TODO", var.name))
-    error_message = "The name must be TODO." # TODO remove the example below once complete:
-    #condition     = can(regex("^[a-z0-9]{5,50}$", var.name))
-    #error_message = "The name must be between 5 and 50 characters long and can only contain lowercase letters and numbers."
+    condition     = can(regex("^[0-9]+\\.[0-9]+\\.[0-9]+$", var.build.gallery_image_version_name))
+    error_message = "build.gallery_image_version_name must use a semantic version format such as '1.0.0'."
   }
 }
 
-# This is required for most resource modules
-variable "resource_group_name" {
-  type        = string
-  description = "The resource group where the resources will be deployed."
+variable "build_timeout_in_minutes" {
+  type        = number
+  default     = 240
+  description = "The maximum time in minutes for the image build. 0 means use default (240 min). Max 960."
+  nullable    = false
+
+  validation {
+    condition     = var.build_timeout_in_minutes >= 0 && var.build_timeout_in_minutes <= 960
+    error_message = "build_timeout_in_minutes must be between 0 and 960."
+  }
 }
 
-# required AVM interfaces
-# remove only if not supported by the resource
-# tflint-ignore: terraform_unused_declarations
-variable "customer_managed_key" {
-  type = object({
-    key_vault_resource_id = string
-    key_name              = string
-    key_version           = optional(string, null)
-    user_assigned_identity = optional(object({
-      resource_id = string
-    }), null)
-  })
+variable "compute_gallery_name" {
+  type        = string
   default     = null
-  description = <<DESCRIPTION
-A map describing customer-managed keys to associate with the resource. This includes the following properties:
-- `key_vault_resource_id` - The resource ID of the Key Vault where the key is stored.
-- `key_name` - The name of the key.
-- `key_version` - (Optional) The version of the key. If not specified, the latest version is used.
-- `user_assigned_identity` - (Optional) An object representing a user-assigned identity with the following properties:
-  - `resource_id` - The resource ID of the user-assigned identity.
-DESCRIPTION
+  description = "The name of the Azure Compute Gallery. If null, a name will be generated from `var.name`."
 }
 
 variable "diagnostic_settings" {
@@ -59,35 +178,8 @@ variable "diagnostic_settings" {
     marketplace_partner_resource_id          = optional(string, null)
   }))
   default     = {}
-  description = <<DESCRIPTION
-A map of diagnostic settings to create on the Key Vault. The map key is deliberately arbitrary to avoid issues where map keys maybe unknown at plan time.
-
-- `name` - (Optional) The name of the diagnostic setting. One will be generated if not set, however this will not be unique if you want to create multiple diagnostic setting resources.
-- `log_categories` - (Optional) A set of log categories to send to the log analytics workspace. Defaults to `[]`.
-- `log_groups` - (Optional) A set of log groups to send to the log analytics workspace. Defaults to `["allLogs"]`.
-- `metric_categories` - (Optional) A set of metric categories to send to the log analytics workspace. Defaults to `["AllMetrics"]`.
-- `log_analytics_destination_type` - (Optional) The destination type for the diagnostic setting. Possible values are `Dedicated` and `AzureDiagnostics`. Defaults to `Dedicated`.
-- `workspace_resource_id` - (Optional) The resource ID of the log analytics workspace to send logs and metrics to.
-- `storage_account_resource_id` - (Optional) The resource ID of the storage account to send logs and metrics to.
-- `event_hub_authorization_rule_resource_id` - (Optional) The resource ID of the event hub authorization rule to send logs and metrics to.
-- `event_hub_name` - (Optional) The name of the event hub. If none is specified, the default event hub will be selected.
-- `marketplace_partner_resource_id` - (Optional) The full ARM resource ID of the Marketplace resource to which you would like to send Diagnostic LogsLogs.
-DESCRIPTION
+  description = "A map of diagnostic settings to create on the resources."
   nullable    = false
-
-  validation {
-    condition     = alltrue([for _, v in var.diagnostic_settings : contains(["Dedicated", "AzureDiagnostics"], v.log_analytics_destination_type)])
-    error_message = "Log analytics destination type must be one of: 'Dedicated', 'AzureDiagnostics'."
-  }
-  validation {
-    condition = alltrue(
-      [
-        for _, v in var.diagnostic_settings :
-        v.workspace_resource_id != null || v.storage_account_resource_id != null || v.event_hub_authorization_rule_resource_id != null || v.marketplace_partner_resource_id != null
-      ]
-    )
-    error_message = "At least one of `workspace_resource_id`, `storage_account_resource_id`, `marketplace_partner_resource_id`, or `event_hub_authorization_rule_resource_id`, must be set."
-  }
 }
 
 variable "enable_telemetry" {
@@ -101,6 +193,62 @@ DESCRIPTION
   nullable    = false
 }
 
+variable "image_template_customization_steps" {
+  type        = any
+  default     = null
+  description = <<DESCRIPTION
+A list of customization steps for the image template. Each step must have a `type` field.
+Supported types: `Shell`, `PowerShell`, `WindowsRestart`, `WindowsUpdate`, `File`.
+DESCRIPTION
+
+  validation {
+    condition     = var.image_template_customization_steps == null || alltrue([for step in var.image_template_customization_steps : lookup(step, "type", null) != null])
+    error_message = "Each customization step must have a 'type' field."
+  }
+}
+
+variable "image_template_distribute" {
+  type = list(object({
+    type             = string
+    run_output_name  = string
+    gallery_image_id = optional(string, null)
+    target_regions = optional(list(object({
+      name                 = string
+      replica_count        = optional(number, 1)
+      storage_account_type = optional(string, "Standard_ZRS")
+    })), null)
+    exclude_from_latest = optional(bool, false)
+    artifact_tags       = optional(map(string), null)
+    image_id            = optional(string, null)
+    location            = optional(string, null)
+    versioning = optional(object({
+      scheme = string
+      major  = optional(number, null)
+    }), null)
+  }))
+  default     = null
+  description = "Distribution targets for the image template. If null, a default SharedImage distribution to the compute gallery will be created."
+
+  validation {
+    condition     = var.image_template_distribute == null || alltrue([for d in coalesce(var.image_template_distribute, []) : contains(["SharedImage", "ManagedImage"], d.type)])
+    error_message = "Each image_template_distribute[*].type must be 'SharedImage' or 'ManagedImage' (VHD distribution is not supported in this version)."
+  }
+  validation {
+    condition     = var.image_template_distribute == null || alltrue([for d in coalesce(var.image_template_distribute, []) : d.type != "ManagedImage" || (d.image_id != null && d.location != null)])
+    error_message = "ManagedImage distribute entries require both image_id and location."
+  }
+  validation {
+    condition     = var.image_template_distribute == null || alltrue([for d in coalesce(var.image_template_distribute, []) : d.versioning == null || contains(["Latest", "Source"], d.versioning.scheme)])
+    error_message = "image_template_distribute[*].versioning.scheme must be 'Latest' or 'Source'."
+  }
+}
+
+variable "image_template_name" {
+  type        = string
+  default     = null
+  description = "The name of the image template. If null, a name will be generated from `var.name`."
+}
+
 variable "lock" {
   type = object({
     kind = string
@@ -108,19 +256,18 @@ variable "lock" {
   })
   default     = null
   description = <<DESCRIPTION
-Controls the Resource Lock configuration for this resource. The following properties can be specified:
+Controls the Resource Lock configuration for the image template resource.
 
-- `kind` - (Required) The type of lock. Possible values are `\"CanNotDelete\"` and `\"ReadOnly\"`.
-- `name` - (Optional) The name of the lock. If not specified, a name will be generated based on the `kind` value. Changing this forces the creation of a new resource.
+- `kind` - (Required) The type of lock. Possible values are `"CanNotDelete"` and `"ReadOnly"`.
+- `name` - (Optional) The name of the lock.
 DESCRIPTION
 
   validation {
     condition     = var.lock != null ? contains(["CanNotDelete", "ReadOnly"], var.lock.kind) : true
-    error_message = "The lock level must be one of: 'None', 'CanNotDelete', or 'ReadOnly'."
+    error_message = "The lock level must be one of: 'CanNotDelete', or 'ReadOnly'."
   }
 }
 
-# tflint-ignore: terraform_unused_declarations
 variable "managed_identities" {
   type = object({
     system_assigned            = optional(bool, false)
@@ -128,80 +275,32 @@ variable "managed_identities" {
   })
   default     = {}
   description = <<DESCRIPTION
-Controls the Managed Identity configuration on this resource. The following properties can be specified:
+Controls the Managed Identity configuration on the compute gallery resource via the AVM interfaces module.
+Note: The image template always uses a module-created user-assigned identity for the AIB service.
 
-- `system_assigned` - (Optional) Specifies if the System Assigned Managed Identity should be enabled.
-- `user_assigned_resource_ids` - (Optional) Specifies a list of User Assigned Managed Identity resource IDs to be assigned to this resource.
+- `system_assigned` - (Optional) Specifies if the System Assigned Managed Identity should be enabled on the gallery.
+- `user_assigned_resource_ids` - (Optional) Specifies a list of User Assigned Managed Identity resource IDs to be assigned to the gallery.
 DESCRIPTION
   nullable    = false
 }
 
-variable "private_endpoints" {
-  type = map(object({
-    name = optional(string, null)
-    role_assignments = optional(map(object({
-      role_definition_id_or_name             = string
-      principal_id                           = string
-      description                            = optional(string, null)
-      skip_service_principal_aad_check       = optional(bool, false)
-      condition                              = optional(string, null)
-      condition_version                      = optional(string, null)
-      delegated_managed_identity_resource_id = optional(string, null)
-    })), {})
-    lock = optional(object({
-      kind = string
-      name = optional(string, null)
-    }), null)
-    tags                                    = optional(map(string), null)
-    subnet_resource_id                      = string
-    private_dns_zone_group_name             = optional(string, "default")
-    private_dns_zone_resource_ids           = optional(set(string), [])
-    application_security_group_associations = optional(map(string), {})
-    private_service_connection_name         = optional(string, null)
-    network_interface_name                  = optional(string, null)
-    location                                = optional(string, null)
-    resource_group_name                     = optional(string, null)
-    ip_configurations = optional(map(object({
-      name               = string
-      private_ip_address = string
-    })), {})
-  }))
-  default     = {}
-  description = <<DESCRIPTION
-A map of private endpoints to create on this resource. The map key is deliberately arbitrary to avoid issues where map keys maybe unknown at plan time.
-
-- `name` - (Optional) The name of the private endpoint. One will be generated if not set.
-- `role_assignments` - (Optional) A map of role assignments to create on the private endpoint. The map key is deliberately arbitrary to avoid issues where map keys maybe unknown at plan time. See `var.role_assignments` for more information.
-- `lock` - (Optional) The lock level to apply to the private endpoint. Default is `None`. Possible values are `None`, `CanNotDelete`, and `ReadOnly`.
-- `tags` - (Optional) A mapping of tags to assign to the private endpoint.
-- `subnet_resource_id` - The resource ID of the subnet to deploy the private endpoint in.
-- `private_dns_zone_group_name` - (Optional) The name of the private DNS zone group. One will be generated if not set.
-- `private_dns_zone_resource_ids` - (Optional) A set of resource IDs of private DNS zones to associate with the private endpoint. If not set, no zone groups will be created and the private endpoint will not be associated with any private DNS zones. DNS records must be managed external to this module.
-- `application_security_group_resource_ids` - (Optional) A map of resource IDs of application security groups to associate with the private endpoint. The map key is deliberately arbitrary to avoid issues where map keys maybe unknown at plan time.
-- `private_service_connection_name` - (Optional) The name of the private service connection. One will be generated if not set.
-- `network_interface_name` - (Optional) The name of the network interface. One will be generated if not set.
-- `location` - (Optional) The Azure location where the resources will be deployed. Defaults to the location of the resource group.
-- `resource_group_name` - (Optional) The resource group where the resources will be deployed. Defaults to the resource group of this resource.
-- `ip_configurations` - (Optional) A map of IP configurations to create on the private endpoint. If not specified the platform will create one. The map key is deliberately arbitrary to avoid issues where map keys maybe unknown at plan time.
-  - `name` - The name of the IP configuration.
-  - `private_ip_address` - The private IP address of the IP configuration.
-DESCRIPTION
-  nullable    = false
-}
-
-# This variable is used to determine if the private_dns_zone_group block should be included,
-# or if it is to be managed externally, e.g. using Azure Policy.
-# https://github.com/Azure/terraform-azurerm-avm-res-keyvault-vault/issues/32
-# Alternatively you can use AzAPI, which does not have this issue.
-variable "private_endpoints_manage_dns_zone_group" {
+variable "optimize_vm_boot" {
   type        = bool
-  default     = true
-  description = "Whether to manage private DNS zone groups with this module. If set to false, you must manage private DNS zone groups externally, e.g. using Azure Policy."
+  default     = false
+  description = "Enable VM boot optimization for the image template. This Azure Image Builder setting is region-sensitive and should only be enabled in supported regions."
+  nullable    = false
+}
+
+variable "rbac_propagation_delay_seconds" {
+  type        = number
+  default     = 300
+  description = "Seconds to wait after RBAC assignments before creating the image template."
   nullable    = false
 }
 
 variable "role_assignments" {
   type = map(object({
+    name                                   = optional(string, null)
     role_definition_id_or_name             = string
     principal_id                           = string
     description                            = optional(string, null)
@@ -212,26 +311,44 @@ variable "role_assignments" {
     principal_type                         = optional(string, null)
   }))
   default     = {}
-  description = <<DESCRIPTION
-A map of role assignments to create on this resource. The map key is deliberately arbitrary to avoid issues where map keys maybe unknown at plan time.
-
-- `role_definition_id_or_name` - The ID or name of the role definition to assign to the principal.
-- `principal_id` - The ID of the principal to assign the role to.
-- `description` - The description of the role assignment.
-- `skip_service_principal_aad_check` - If set to true, skips the Azure Active Directory check for the service principal in the tenant. Defaults to false.
-- `condition` - The condition which will be used to scope the role assignment.
-- `condition_version` - The version of the condition syntax. Valid values are '2.0'.
-- `delegated_managed_identity_resource_id` - The delegated Azure Resource Id which contains a Managed Identity. Changing this forces a new resource to be created.
-- `principal_type` - The type of the principal_id. Possible values are `User`, `Group` and `ServicePrincipal`. Changing this forces a new resource to be created. It is necessary to explicitly set this attribute when creating role assignments if the principal creating the assignment is constrained by ABAC rules that filters on the PrincipalType attribute.
-
-> Note: only set `skip_service_principal_aad_check` to true if you are assigning a role to a service principal.
-DESCRIPTION
+  description = "A map of role assignments to create on the image template resource."
   nullable    = false
 }
 
-# tflint-ignore: terraform_unused_declarations
+variable "staging_resource_group_name" {
+  type        = string
+  default     = null
+  description = <<DESCRIPTION
+The name of the resource group used by AIB for temporary build resources (staging VMs, storage accounts).
+If set, the module creates this resource group and grants the image builder identity Contributor access.
+This is required for builds to succeed when the subscription has restrictive storage policies.
+If null, AIB creates a random staging resource group (which may fail under restrictive policies).
+DESCRIPTION
+}
+
 variable "tags" {
   type        = map(string)
   default     = null
-  description = "(Optional) Tags of the resource."
+  description = "(Optional) Tags of the resources."
+}
+
+variable "vm_profile" {
+  type = object({
+    vm_size         = optional(string, "Standard_D2s_v3")
+    os_disk_size_gb = optional(number, null)
+    vnet_config = optional(object({
+      subnet_id                    = string
+      container_instance_subnet_id = optional(string, null)
+      proxy_vm_size                = optional(string, null)
+    }), null)
+  })
+  default     = {}
+  description = <<DESCRIPTION
+The VM profile for the image build.
+
+- `vm_size` - (Optional) The VM size for the build. Defaults to `Standard_D2s_v3`.
+- `os_disk_size_gb` - (Optional) The OS disk size in GB.
+- `vnet_config` - (Optional) VNet integration for private builds.
+DESCRIPTION
+  nullable    = false
 }
