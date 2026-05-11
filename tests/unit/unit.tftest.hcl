@@ -91,6 +91,11 @@ run "basic_aib_creation" {
     condition     = output.image_builder_identity_id != ""
     error_message = "Image builder identity ID should not be empty."
   }
+
+  assert {
+    condition     = length(terraform_data.delete_gallery_image_versions_on_destroy) == length(var.compute_gallery_image_definitions)
+    error_message = "Destroy-time image version cleanup should be created for each gallery image definition."
+  }
 }
 
 run "telemetry_enabled" {

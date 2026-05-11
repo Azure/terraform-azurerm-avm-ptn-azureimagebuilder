@@ -43,7 +43,10 @@ locals {
       artifact_tags       = null
       image_id            = null
       location            = null
-      versioning          = null
+      versioning = {
+        scheme = "Latest"
+        major  = 1
+      }
     }
   ])
   gallery_image_version_cleanup_targets = var.build.enabled && var.build.cleanup_gallery_image_version_on_destroy ? {

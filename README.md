@@ -54,6 +54,7 @@ The following resources are used by this module:
 - [modtm_telemetry.telemetry](https://registry.terraform.io/providers/azure/modtm/latest/docs/resources/telemetry) (resource)
 - [random_uuid.telemetry](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/uuid) (resource)
 - [terraform_data.build_trigger](https://registry.terraform.io/providers/hashicorp/terraform/latest/docs/resources/data) (resource)
+- [terraform_data.delete_gallery_image_versions_on_destroy](https://registry.terraform.io/providers/hashicorp/terraform/latest/docs/resources/data) (resource)
 - [time_sleep.rbac_propagation](https://registry.terraform.io/providers/hashicorp/time/latest/docs/resources/sleep) (resource)
 - [azapi_client_config.current](https://registry.terraform.io/providers/Azure/azapi/latest/docs/data-sources/client_config) (data source)
 - [azapi_client_config.telemetry](https://registry.terraform.io/providers/Azure/azapi/latest/docs/data-sources/client_config) (data source)
@@ -159,7 +160,7 @@ Description: Controls whether to trigger an image build after creating the templ
 
 - `cleanup_gallery_image_version_on_destroy` - (Optional) Whether to delete SharedImage gallery image versions produced by module-triggered builds during destroy. Defaults to true.
 - `enabled` - (Optional) Whether to trigger the build. Defaults to false.
-- `gallery_image_version_name` - (Optional) The gallery image version name to delete during destroy when SharedImage cleanup is enabled. Defaults to "1.0.0".
+- `gallery_image_version_name` - (Optional) The gallery image version name to delete during destroy when SharedImage cleanup is enabled. Defaults to "1.0.0". When using the default `image_template_distribute` configuration (which uses `versioning.scheme = "Latest"` with `major = 1`), the first build creates version `1.0.0`. If you use a custom `image_template_distribute` with a different versioning scheme, set this to the version name that should be cleaned up on destroy.
 - `trigger_id` - (Optional) Change this value to force a new build. Defaults to "1".
 
 Type:
@@ -241,7 +242,7 @@ Default: `null`
 
 ### <a name="input_image_template_distribute"></a> [image\_template\_distribute](#input\_image\_template\_distribute)
 
-Description: Distribution targets for the image template. If null, a default SharedImage distribution to the compute gallery will be created.
+Description: Distribution targets for the image template. If null, a default SharedImage distribution to the compute gallery will be created using `versioning.scheme = "Latest"` with `major = 1`, which produces version `1.0.0` for the first build. This default versioning ensures that the `build.gallery_image_version_name` (default `"1.0.0"`) correctly identifies the version to clean up on destroy.
 
 Type:
 
