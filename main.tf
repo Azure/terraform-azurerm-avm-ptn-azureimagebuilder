@@ -242,6 +242,47 @@ resource "azapi_resource_action" "trigger_build" {
   }
 }
 
+# --- Destroy-time cleanup of gallery image versions ---
+# Azure requires all image versions to be deleted before an image definition can be deleted,
+# and all image definitions must be deleted before the gallery can be deleted. This resource
+# uses the Azure CLI (when available) to enumerate and delete all image versions for each
+# gallery image definition before Terraform destroys the definition itself. Using
+# `on_failure = continue` ensures the destroy is not blocked in environments where the
+# Azure CLI is unavailable or no versions exist.
+# The `depends_on` ensures this runs BEFORE `gallery_image_definition` is destroyed, and
+# `delete_gallery_image_version` (below) depends on this resource so that the azapi-native
+# version deletion runs BEFORE this catch-all CLI cleanup.
+resource "terraform_data" "delete_gallery_image_versions_on_destroy" {
+  for_each = azapi_resource.gallery_image_definition
+
+  # Store the image definition resource ID in state so it is available during destroy.
+  input = each.value.id
+
+  provisioner "local-exec" {
+    when       = destroy
+    on_failure = continue
+    command    = <<-EOT
+      DEFINITION_ID='${self.input}'
+      if ! command -v az > /dev/null 2>&1; then
+        echo "Azure CLI not found; skipping image version cleanup for $$DEFINITION_ID"
+        exit 0
+      fi
+      VERSIONS=$$(az rest --method GET --uri "$$DEFINITION_ID/versions?api-version=2024-03-03" --query "value[].id" -o tsv 2>/dev/null || echo "")
+      if [ -z "$$VERSIONS" ]; then
+        echo "No image versions found in $$DEFINITION_ID"
+        exit 0
+      fi
+      while IFS= read -r VER; do
+        [ -z "$$VER" ] && continue
+        echo "Deleting image version: $$VER"
+        az rest --method DELETE --uri "$$VER?api-version=2024-03-03" 2>/dev/null || echo "Warning: failed to delete $$VER, continuing..."
+      done <<< "$$VERSIONS"
+    EOT
+  }
+
+  depends_on = [azapi_resource.gallery_image_definition]
+}
+
 resource "azapi_resource_action" "delete_gallery_image_version" {
   for_each = local.gallery_image_version_cleanup_targets
 
@@ -254,5 +295,9 @@ resource "azapi_resource_action" "delete_gallery_image_version" {
   depends_on = [
     azapi_resource.gallery_image_definition,
     azapi_resource_action.trigger_build,
+    # Run before the catch-all CLI cleanup so azapi-native deletion occurs first.
+    # During destroy, resources are destroyed in reverse dependency order, so
+    # delete_gallery_image_version runs BEFORE delete_gallery_image_versions_on_destroy.
+    terraform_data.delete_gallery_image_versions_on_destroy,
   ]
 }
