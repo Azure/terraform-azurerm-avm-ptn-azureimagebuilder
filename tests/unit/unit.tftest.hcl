@@ -344,11 +344,22 @@ run "timeouts_can_be_configured" {
   variables {
     build = { enabled = true }
     timeouts = {
-      image_template_create = "45m"
-      image_template_delete = "46m"
-      image_template_update = "47m"
-      trigger_build_create  = "5h"
+      compute_gallery_delete = "32m"
+      image_template_create  = "45m"
+      image_template_delete  = "46m"
+      image_template_update  = "47m"
+      trigger_build_create   = "5h"
     }
+  }
+
+  assert {
+    condition     = azapi_resource.compute_gallery.timeouts.delete == "32m"
+    error_message = "Compute gallery delete timeout should be configurable."
+  }
+
+  assert {
+    condition     = contains(azapi_resource.compute_gallery.retry.error_message_regex, "CannotDeleteResource")
+    error_message = "Compute gallery delete should retry transient nested-resource conflicts."
   }
 
   assert {

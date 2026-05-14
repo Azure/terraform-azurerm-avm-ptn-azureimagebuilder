@@ -44,8 +44,14 @@ resource "azapi_resource" "compute_gallery" {
   delete_headers         = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
   read_headers           = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
   response_export_values = []
-  tags                   = var.tags
-  update_headers         = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  retry = {
+    error_message_regex = [
+      "CannotDeleteResource",
+      "Cannot delete resource while nested resources exist",
+    ]
+  }
+  tags           = var.tags
+  update_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
 
   dynamic "identity" {
     for_each = module.avm_interfaces.managed_identities_azapi != null ? [module.avm_interfaces.managed_identities_azapi] : []
@@ -54,6 +60,9 @@ resource "azapi_resource" "compute_gallery" {
       type         = identity.value.type
       identity_ids = identity.value.identity_ids
     }
+  }
+  timeouts {
+    delete = var.timeouts.compute_gallery_delete
   }
 }
 

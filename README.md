@@ -396,6 +396,7 @@ Default: `null`
 
 Description: Terraform operation timeouts for long-running AzAPI resources and actions. These timeouts control Terraform provider operations and are separate from `build_timeout_in_minutes`, which controls the Azure Image Builder service build timeout.
 
+- `compute_gallery_delete` - (Optional) Timeout for deleting the compute gallery. Defaults to `30m`.
 - `image_template_create` - (Optional) Timeout for creating the image template. Defaults to `30m`.
 - `image_template_delete` - (Optional) Timeout for deleting the image template. Defaults to `30m`.
 - `image_template_update` - (Optional) Timeout for updating the image template. Defaults to `30m`.
@@ -405,10 +406,11 @@ Type:
 
 ```hcl
 object({
-    image_template_create = optional(string, "30m")
-    image_template_delete = optional(string, "30m")
-    image_template_update = optional(string, "30m")
-    trigger_build_create  = optional(string, "4h")
+    compute_gallery_delete = optional(string, "30m")
+    image_template_create  = optional(string, "30m")
+    image_template_delete  = optional(string, "30m")
+    image_template_update  = optional(string, "30m")
+    trigger_build_create   = optional(string, "4h")
   })
 ```
 
