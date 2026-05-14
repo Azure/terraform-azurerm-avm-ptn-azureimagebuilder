@@ -20,6 +20,19 @@ mock_provider "azapi" {
     }
   }
 
+  mock_data "azapi_resource" {
+    defaults = {
+      id       = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-existing/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uai-existing"
+      name     = "uai-existing"
+      location = "eastus"
+      output = {
+        properties = {
+          principalId = "00000000-0000-0000-0000-000000000003"
+        }
+      }
+    }
+  }
+
   mock_data "azapi_client_config" {
     defaults = {
       subscription_id          = "00000000-0000-0000-0000-000000000000"
@@ -90,11 +103,6 @@ run "basic_aib_creation" {
   assert {
     condition     = output.image_builder_identity_id != ""
     error_message = "Image builder identity ID should not be empty."
-  }
-
-  assert {
-    condition     = length(terraform_data.delete_gallery_image_versions_on_destroy) == length(var.compute_gallery_image_definitions)
-    error_message = "Destroy-time image version cleanup should be created for each gallery image definition."
   }
 }
 
@@ -264,6 +272,116 @@ run "staging_rg_created_when_set" {
     condition     = length(azapi_resource.staging_rg_role_assignment) == 1
     error_message = "Staging RG RBAC should be created when staging_resource_group_name is set."
   }
+}
+
+run "byo_image_builder_identity_used_when_set" {
+  command = apply
+
+  variables {
+    image_builder_identity_resource_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-existing/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uai-existing"
+  }
+
+  assert {
+    condition     = length(azapi_resource.image_builder_identity) == 0
+    error_message = "The module should not create an image builder identity when image_builder_identity_resource_id is set."
+  }
+
+  assert {
+    condition     = output.image_builder_identity_id == var.image_builder_identity_resource_id
+    error_message = "The image builder identity output should return the BYO identity resource ID."
+  }
+
+  assert {
+    condition     = azapi_resource.gallery_role_assignment.body.properties.principalId == data.azapi_resource.image_builder_identity[0].output.properties.principalId
+    error_message = "Gallery RBAC should target the BYO identity principal ID."
+  }
+}
+
+run "byo_staging_rg_used_when_set" {
+  command = apply
+
+  variables {
+    staging_resource_group_resource_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-existing-staging"
+  }
+
+  assert {
+    condition     = length(azapi_resource.staging_resource_group) == 0
+    error_message = "The module should not create a staging resource group when staging_resource_group_resource_id is set."
+  }
+
+  assert {
+    condition     = length(azapi_resource.staging_rg_role_assignment) == 1
+    error_message = "The module should create RBAC for the BYO staging resource group."
+  }
+
+  assert {
+    condition     = azapi_resource.staging_rg_role_assignment[0].parent_id == var.staging_resource_group_resource_id
+    error_message = "Staging resource group RBAC should use the BYO resource group ID."
+  }
+
+  assert {
+    condition     = azapi_resource.image_template.body.properties.stagingResourceGroup == var.staging_resource_group_resource_id
+    error_message = "The image template should use the BYO staging resource group ID."
+  }
+}
+
+run "staging_rg_name_and_id_rejected" {
+  command = plan
+
+  variables {
+    staging_resource_group_name        = "rg-test-staging"
+    staging_resource_group_resource_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-existing-staging"
+  }
+
+  expect_failures = [
+    var.staging_resource_group_name
+  ]
+}
+
+run "timeouts_can_be_configured" {
+  command = apply
+
+  variables {
+    build = { enabled = true }
+    timeouts = {
+      image_template_create = "45m"
+      image_template_delete = "46m"
+      image_template_update = "47m"
+      trigger_build_create  = "5h"
+    }
+  }
+
+  assert {
+    condition     = azapi_resource.image_template.timeouts.create == "45m"
+    error_message = "Image template create timeout should be configurable."
+  }
+
+  assert {
+    condition     = azapi_resource.image_template.timeouts.delete == "46m"
+    error_message = "Image template delete timeout should be configurable."
+  }
+
+  assert {
+    condition     = azapi_resource.image_template.timeouts.update == "47m"
+    error_message = "Image template update timeout should be configurable."
+  }
+
+  assert {
+    condition     = azapi_resource_action.trigger_build[0].timeouts.create == "5h"
+    error_message = "Build trigger create timeout should be configurable."
+  }
+}
+
+run "invalid_compute_gallery_name_rejected" {
+  command = plan
+
+  variables {
+    compute_gallery_name = "gal-test"
+  }
+
+  expect_failures = [
+    var.compute_gallery_name
+  ]
 }
 
 run "invalid_platform_image_source_rejected" {

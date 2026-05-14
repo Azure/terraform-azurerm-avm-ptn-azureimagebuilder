@@ -15,9 +15,14 @@ It orchestrates the creation of a User-Assigned Managed Identity, Azure Compute 
 - VNet integration for private builds
 - Opt-in VM boot optimization for supported regions
 - Opt-in build triggering with nonce-based re-trigger support and Shared Image Gallery version cleanup on destroy
-- Managed identity with automatic RBAC wiring
+- Managed identity with BYO support and automatic RBAC wiring
+- Optional module-created or BYO staging resource group for build resources
 - Resource locks and role assignments via AVM interfaces module
 - AVM telemetry
+
+## Naming notes
+
+Azure Compute Gallery names can contain alphanumerics, underscores, and periods, but they cannot contain hyphens. When `compute_gallery_name` is null, the generated gallery name replaces hyphens in `name` with underscores. Set `compute_gallery_name` to use a specific compliant gallery name.
 
 <!-- markdownlint-disable MD033 -->
 ## Requirements
@@ -54,10 +59,10 @@ The following resources are used by this module:
 - [modtm_telemetry.telemetry](https://registry.terraform.io/providers/azure/modtm/latest/docs/resources/telemetry) (resource)
 - [random_uuid.telemetry](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/uuid) (resource)
 - [terraform_data.build_trigger](https://registry.terraform.io/providers/hashicorp/terraform/latest/docs/resources/data) (resource)
-- [terraform_data.delete_gallery_image_versions_on_destroy](https://registry.terraform.io/providers/hashicorp/terraform/latest/docs/resources/data) (resource)
 - [time_sleep.rbac_propagation](https://registry.terraform.io/providers/hashicorp/time/latest/docs/resources/sleep) (resource)
 - [azapi_client_config.current](https://registry.terraform.io/providers/Azure/azapi/latest/docs/data-sources/client_config) (data source)
 - [azapi_client_config.telemetry](https://registry.terraform.io/providers/Azure/azapi/latest/docs/data-sources/client_config) (data source)
+- [azapi_resource.image_builder_identity](https://registry.terraform.io/providers/Azure/azapi/latest/docs/data-sources/resource) (data source)
 - [modtm_module_source.telemetry](https://registry.terraform.io/providers/azure/modtm/latest/docs/data-sources/module_source) (data source)
 
 <!-- markdownlint-disable MD013 -->
@@ -192,7 +197,7 @@ Default: `240`
 
 ### <a name="input_compute_gallery_name"></a> [compute\_gallery\_name](#input\_compute\_gallery\_name)
 
-Description: The name of the Azure Compute Gallery. If null, a name will be generated from `var.name`.
+Description: The name of the Azure Compute Gallery. If null, a name will be generated from `var.name` by replacing hyphens with underscores because gallery names do not allow hyphens.
 
 Type: `string`
 
@@ -230,6 +235,14 @@ If it is set to false, then no telemetry will be collected.
 Type: `bool`
 
 Default: `true`
+
+### <a name="input_image_builder_identity_resource_id"></a> [image\_builder\_identity\_resource\_id](#input\_image\_builder\_identity\_resource\_id)
+
+Description: The resource ID of an existing user-assigned managed identity for Azure Image Builder. If null, the module creates a user-assigned managed identity.
+
+Type: `string`
+
+Default: `null`
 
 ### <a name="input_image_template_customization_steps"></a> [image\_template\_customization\_steps](#input\_image\_template\_customization\_steps)
 
@@ -357,7 +370,15 @@ Default: `{}`
 Description: The name of the resource group used by AIB for temporary build resources (staging VMs, storage accounts).  
 If set, the module creates this resource group and grants the image builder identity Contributor access.  
 This is required for builds to succeed when the subscription has restrictive storage policies.  
-If null, AIB creates a random staging resource group (which may fail under restrictive policies).
+If null and `staging_resource_group_resource_id` is also null, AIB creates a random staging resource group (which may fail under restrictive policies).
+
+Type: `string`
+
+Default: `null`
+
+### <a name="input_staging_resource_group_resource_id"></a> [staging\_resource\_group\_resource\_id](#input\_staging\_resource\_group\_resource\_id)
+
+Description: The resource ID of an existing resource group used by AIB for temporary build resources. If set, the module does not create the staging resource group and grants the image builder identity Contributor access to this scope.
 
 Type: `string`
 
@@ -370,6 +391,28 @@ Description: (Optional) Tags of the resources.
 Type: `map(string)`
 
 Default: `null`
+
+### <a name="input_timeouts"></a> [timeouts](#input\_timeouts)
+
+Description: Terraform operation timeouts for long-running AzAPI resources and actions. These timeouts control Terraform provider operations and are separate from `build_timeout_in_minutes`, which controls the Azure Image Builder service build timeout.
+
+- `image_template_create` - (Optional) Timeout for creating the image template. Defaults to `30m`.
+- `image_template_delete` - (Optional) Timeout for deleting the image template. Defaults to `30m`.
+- `image_template_update` - (Optional) Timeout for updating the image template. Defaults to `30m`.
+- `trigger_build_create` - (Optional) Timeout for triggering the image build action. Defaults to `4h`.
+
+Type:
+
+```hcl
+object({
+    image_template_create = optional(string, "30m")
+    image_template_delete = optional(string, "30m")
+    image_template_update = optional(string, "30m")
+    trigger_build_create  = optional(string, "4h")
+  })
+```
+
+Default: `{}`
 
 ### <a name="input_vm_profile"></a> [vm\_profile](#input\_vm\_profile)
 

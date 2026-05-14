@@ -161,7 +161,12 @@ variable "build_timeout_in_minutes" {
 variable "compute_gallery_name" {
   type        = string
   default     = null
-  description = "The name of the Azure Compute Gallery. If null, a name will be generated from `var.name`."
+  description = "The name of the Azure Compute Gallery. If null, a name will be generated from `var.name` by replacing hyphens with underscores because gallery names do not allow hyphens."
+
+  validation {
+    condition     = var.compute_gallery_name == null || can(regex("^[A-Za-z0-9]([A-Za-z0-9_.]{0,78}[A-Za-z0-9])?$", var.compute_gallery_name))
+    error_message = "compute_gallery_name must be 1-80 characters, contain only alphanumerics, underscores, and periods, and start and end with an alphanumeric character."
+  }
 }
 
 variable "diagnostic_settings" {
@@ -191,6 +196,17 @@ For more information see <https://aka.ms/avm/telemetryinfo>.
 If it is set to false, then no telemetry will be collected.
 DESCRIPTION
   nullable    = false
+}
+
+variable "image_builder_identity_resource_id" {
+  type        = string
+  default     = null
+  description = "The resource ID of an existing user-assigned managed identity for Azure Image Builder. If null, the module creates a user-assigned managed identity."
+
+  validation {
+    condition     = var.image_builder_identity_resource_id == null || can(regex("(?i)^/subscriptions/[^/]+/resourceGroups/[^/]+/providers/Microsoft\\.ManagedIdentity/userAssignedIdentities/[^/]+$", var.image_builder_identity_resource_id))
+    error_message = "image_builder_identity_resource_id must be a valid user-assigned managed identity resource ID."
+  }
 }
 
 variable "image_template_customization_steps" {
@@ -322,14 +338,54 @@ variable "staging_resource_group_name" {
 The name of the resource group used by AIB for temporary build resources (staging VMs, storage accounts).
 If set, the module creates this resource group and grants the image builder identity Contributor access.
 This is required for builds to succeed when the subscription has restrictive storage policies.
-If null, AIB creates a random staging resource group (which may fail under restrictive policies).
+If null and `staging_resource_group_resource_id` is also null, AIB creates a random staging resource group (which may fail under restrictive policies).
 DESCRIPTION
+
+  validation {
+    condition     = var.staging_resource_group_name == null || var.staging_resource_group_resource_id == null
+    error_message = "Only one of staging_resource_group_name or staging_resource_group_resource_id can be set."
+  }
+}
+
+variable "staging_resource_group_resource_id" {
+  type        = string
+  default     = null
+  description = "The resource ID of an existing resource group used by AIB for temporary build resources. If set, the module does not create the staging resource group and grants the image builder identity Contributor access to this scope."
+
+  validation {
+    condition     = var.staging_resource_group_resource_id == null || can(regex("(?i)^/subscriptions/[^/]+/resourceGroups/[^/]+$", var.staging_resource_group_resource_id))
+    error_message = "staging_resource_group_resource_id must be a valid resource group resource ID."
+  }
 }
 
 variable "tags" {
   type        = map(string)
   default     = null
   description = "(Optional) Tags of the resources."
+}
+
+variable "timeouts" {
+  type = object({
+    image_template_create = optional(string, "30m")
+    image_template_delete = optional(string, "30m")
+    image_template_update = optional(string, "30m")
+    trigger_build_create  = optional(string, "4h")
+  })
+  default     = {}
+  description = <<DESCRIPTION
+Terraform operation timeouts for long-running AzAPI resources and actions. These timeouts control Terraform provider operations and are separate from `build_timeout_in_minutes`, which controls the Azure Image Builder service build timeout.
+
+- `image_template_create` - (Optional) Timeout for creating the image template. Defaults to `30m`.
+- `image_template_delete` - (Optional) Timeout for deleting the image template. Defaults to `30m`.
+- `image_template_update` - (Optional) Timeout for updating the image template. Defaults to `30m`.
+- `trigger_build_create` - (Optional) Timeout for triggering the image build action. Defaults to `4h`.
+DESCRIPTION
+  nullable    = false
+
+  validation {
+    condition     = alltrue([for timeout in values(var.timeouts) : can(regex("^([0-9]+[smh])+$", timeout))])
+    error_message = "Each timeout must use Terraform duration syntax with s, m, or h units, such as '30m', '4h', or '1h30m'."
+  }
 }
 
 variable "vm_profile" {
