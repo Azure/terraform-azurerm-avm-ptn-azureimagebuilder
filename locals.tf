@@ -1,6 +1,8 @@
 locals {
-  compute_gallery_name     = coalesce(var.compute_gallery_name, "gal_${replace(var.name, "-", "_")}")
-  default_gallery_image_id = "${azapi_resource.compute_gallery.id}/images/${local.resolved_image_definition_name}"
+  compute_gallery_name             = coalesce(var.compute_gallery_name, "gal_${replace(var.name, "-", "_")}")
+  contributor_role_definition_guid = "b24988ac-6180-42a0-ab88-20f7382dd24c"
+  contributor_role_definition_id   = provider::azapi::subscription_resource_id(data.azapi_client_config.current.subscription_id, "Microsoft.Authorization/roleDefinitions", [local.contributor_role_definition_guid])
+  default_gallery_image_id         = "${azapi_resource.compute_gallery.id}/images/${local.resolved_image_definition_name}"
   # Per-type distribute body: only SharedImage uses galleryImageId/targetRegions/versioning;
   # ManagedImage uses imageId+location; VHD would use uri (not supported in v0.1).
   distribute = [
@@ -55,6 +57,8 @@ locals {
     }
     if distribution.type == "SharedImage"
   } : {}
+  image_builder_identity_id           = var.image_builder_identity_resource_id != null ? var.image_builder_identity_resource_id : azapi_resource.image_builder_identity[0].id
+  image_builder_identity_principal_id = var.image_builder_identity_resource_id != null ? data.azapi_resource.image_builder_identity[0].output.properties.principalId : azapi_resource.image_builder_identity[0].output.properties.principalId
   image_source = (
     var.image_template_image_source.type == "PlatformImage" ? local.image_source_platform :
     var.image_template_image_source.type == "ManagedImage" ? local.image_source_managed :
@@ -85,10 +89,13 @@ locals {
     type           = "SharedImageVersion"
     imageVersionId = var.image_template_image_source.image_version_id
   }
-  image_template_name = coalesce(var.image_template_name, "it-${var.name}")
+  image_template_name                      = coalesce(var.image_template_name, "it-${var.name}")
+  network_contributor_role_definition_guid = "4d97b98b-1d4f-4787-a291-c67834d212e7"
+  network_contributor_role_definition_id   = provider::azapi::subscription_resource_id(data.azapi_client_config.current.subscription_id, "Microsoft.Authorization/roleDefinitions", [local.network_contributor_role_definition_guid])
   # Resolve image-definition name from either the map key or the explicit `.name`.
   # The Azure Compute Gallery image path uses the resource name, not the Terraform map key.
   resolved_image_definition_name = lookup(var.compute_gallery_image_definitions, var.compute_gallery_image_definition_name, null) != null ? var.compute_gallery_image_definitions[var.compute_gallery_image_definition_name].name : one([for k, v in var.compute_gallery_image_definitions : v.name if v.name == var.compute_gallery_image_definition_name])
+  staging_resource_group_id      = var.staging_resource_group_resource_id != null ? var.staging_resource_group_resource_id : try(azapi_resource.staging_resource_group[0].id, null)
   # VM profile — filter null values to avoid sending zero defaults
   vm_profile = {
     for k, v in {
@@ -103,8 +110,9 @@ locals {
       } : null
     } : k => v if v != null
   }
-  vnet_id = local.vnet_subnet_id != null ? regex("^(/subscriptions/[^/]+/resourceGroups/[^/]+/providers/Microsoft.Network/virtualNetworks/[^/]+)", local.vnet_subnet_id)[0] : null
+  vnet_id = local.vnet_subnet_resource != null ? provider::azapi::resource_group_resource_id(local.vnet_subnet_resource.subscription_id, local.vnet_subnet_resource.resource_group_name, "Microsoft.Network/virtualNetworks", [local.vnet_subnet_resource.parts.virtualNetworks]) : null
   # VNet subnet → parent VNet ID (subnet RBAC scope can be the subnet itself, but
   # Network Contributor must propagate from the VNet for AIB to attach NICs).
-  vnet_subnet_id = try(var.vm_profile.vnet_config.subnet_id, null)
+  vnet_subnet_id       = try(var.vm_profile.vnet_config.subnet_id, null)
+  vnet_subnet_resource = local.vnet_subnet_id != null ? provider::azapi::parse_resource_id("Microsoft.Network/virtualNetworks/subnets", local.vnet_subnet_id) : null
 }
