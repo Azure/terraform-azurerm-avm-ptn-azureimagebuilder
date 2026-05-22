@@ -1,7 +1,22 @@
 data "azapi_client_config" "current" {}
 
+data "azapi_resource" "image_builder_identity" {
+  count = var.image_builder_identity_resource_id != null ? 1 : 0
+
+  resource_id            = var.image_builder_identity_resource_id
+  type                   = "Microsoft.ManagedIdentity/userAssignedIdentities@2024-11-30"
+  response_export_values = ["properties.principalId"]
+}
+
+moved {
+  from = azapi_resource.image_builder_identity
+  to   = azapi_resource.image_builder_identity[0]
+}
+
 # --- User-Assigned Identity for Image Builder ---
 resource "azapi_resource" "image_builder_identity" {
+  count = var.image_builder_identity_resource_id == null ? 1 : 0
+
   location               = var.location
   name                   = "msi-${var.name}"
   parent_id              = var.parent_id
@@ -29,8 +44,14 @@ resource "azapi_resource" "compute_gallery" {
   delete_headers         = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
   read_headers           = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
   response_export_values = []
-  tags                   = var.tags
-  update_headers         = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  retry = {
+    error_message_regex = [
+      "CannotDeleteResource",
+      "Cannot delete resource while nested resources exist",
+    ]
+  }
+  tags           = var.tags
+  update_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
 
   dynamic "identity" {
     for_each = module.avm_interfaces.managed_identities_azapi != null ? [module.avm_interfaces.managed_identities_azapi] : []
@@ -39,6 +60,9 @@ resource "azapi_resource" "compute_gallery" {
       type         = identity.value.type
       identity_ids = identity.value.identity_ids
     }
+  }
+  timeouts {
+    delete = var.timeouts.compute_gallery_delete
   }
 }
 
@@ -96,15 +120,15 @@ resource "azapi_resource" "staging_resource_group" {
 # --- RBAC: Identity -> Staging RG (Contributor) ---
 # Deterministic UUIDv5 keyed on scope + principal + role to survive state loss / re-import.
 resource "azapi_resource" "staging_rg_role_assignment" {
-  count = var.staging_resource_group_name != null ? 1 : 0
+  count = var.staging_resource_group_name != null || var.staging_resource_group_resource_id != null ? 1 : 0
 
-  name      = uuidv5("oid", "${azapi_resource.staging_resource_group[0].id}-${azapi_resource.image_builder_identity.output.properties.principalId}-b24988ac-6180-42a0-ab88-20f7382dd24c")
-  parent_id = azapi_resource.staging_resource_group[0].id
+  name      = uuidv5("oid", "${local.staging_resource_group_id}-${local.image_builder_identity_principal_id}-${local.contributor_role_definition_guid}")
+  parent_id = local.staging_resource_group_id
   type      = "Microsoft.Authorization/roleAssignments@2022-04-01"
   body = {
     properties = {
-      principalId      = azapi_resource.image_builder_identity.output.properties.principalId
-      roleDefinitionId = "${data.azapi_client_config.current.subscription_resource_id}/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c"
+      principalId      = local.image_builder_identity_principal_id
+      roleDefinitionId = local.contributor_role_definition_id
       principalType    = "ServicePrincipal"
     }
   }
@@ -117,13 +141,13 @@ resource "azapi_resource" "staging_rg_role_assignment" {
 
 # --- RBAC: Identity -> Gallery (Contributor) ---
 resource "azapi_resource" "gallery_role_assignment" {
-  name      = uuidv5("oid", "${azapi_resource.compute_gallery.id}-${azapi_resource.image_builder_identity.output.properties.principalId}-b24988ac-6180-42a0-ab88-20f7382dd24c")
+  name      = uuidv5("oid", "${azapi_resource.compute_gallery.id}-${local.image_builder_identity_principal_id}-${local.contributor_role_definition_guid}")
   parent_id = azapi_resource.compute_gallery.id
   type      = "Microsoft.Authorization/roleAssignments@2022-04-01"
   body = {
     properties = {
-      principalId      = azapi_resource.image_builder_identity.output.properties.principalId
-      roleDefinitionId = "${data.azapi_client_config.current.subscription_resource_id}/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c"
+      principalId      = local.image_builder_identity_principal_id
+      roleDefinitionId = local.contributor_role_definition_id
       principalType    = "ServicePrincipal"
     }
   }
@@ -138,13 +162,13 @@ resource "azapi_resource" "gallery_role_assignment" {
 resource "azapi_resource" "vnet_role_assignment" {
   count = var.vm_profile.vnet_config != null ? 1 : 0
 
-  name      = uuidv5("oid", "${local.vnet_id}-${azapi_resource.image_builder_identity.output.properties.principalId}-4d97b98b-1d4f-4787-a291-c67834d212e7")
+  name      = uuidv5("oid", "${local.vnet_id}-${local.image_builder_identity_principal_id}-${local.network_contributor_role_definition_guid}")
   parent_id = local.vnet_id
   type      = "Microsoft.Authorization/roleAssignments@2022-04-01"
   body = {
     properties = {
-      principalId      = azapi_resource.image_builder_identity.output.properties.principalId
-      roleDefinitionId = "${data.azapi_client_config.current.subscription_resource_id}/providers/Microsoft.Authorization/roleDefinitions/4d97b98b-1d4f-4787-a291-c67834d212e7"
+      principalId      = local.image_builder_identity_principal_id
+      roleDefinitionId = local.network_contributor_role_definition_id
       principalType    = "ServicePrincipal"
     }
   }
@@ -181,7 +205,7 @@ resource "azapi_resource" "image_template" {
         vmProfile             = local.vm_profile
         buildTimeoutInMinutes = var.build_timeout_in_minutes
         optimize              = var.optimize_vm_boot ? { vmBoot = { state = "Enabled" } } : null
-        stagingResourceGroup  = var.staging_resource_group_name != null ? azapi_resource.staging_resource_group[0].id : null
+        stagingResourceGroup  = local.staging_resource_group_id
       } : k => v if v != null
     }
   }
@@ -195,12 +219,12 @@ resource "azapi_resource" "image_template" {
 
   identity {
     type         = "UserAssigned"
-    identity_ids = [azapi_resource.image_builder_identity.id]
+    identity_ids = [local.image_builder_identity_id]
   }
   timeouts {
-    create = "30m"
-    delete = "30m"
-    update = "30m"
+    create = var.timeouts.image_template_create
+    delete = var.timeouts.image_template_delete
+    update = var.timeouts.image_template_update
   }
 
   depends_on = [
@@ -232,7 +256,7 @@ resource "azapi_resource_action" "trigger_build" {
   type        = "Microsoft.VirtualMachineImages/imageTemplates@2024-02-01"
 
   timeouts {
-    create = "4h"
+    create = var.timeouts.trigger_build_create
   }
 
   depends_on = [azapi_resource.image_template]
@@ -240,47 +264,6 @@ resource "azapi_resource_action" "trigger_build" {
   lifecycle {
     replace_triggered_by = [terraform_data.build_trigger[0]]
   }
-}
-
-# --- Destroy-time cleanup of gallery image versions ---
-# Azure requires all image versions to be deleted before an image definition can be deleted,
-# and all image definitions must be deleted before the gallery can be deleted. This resource
-# uses the Azure CLI (when available) to enumerate and delete all image versions for each
-# gallery image definition before Terraform destroys the definition itself. Using
-# `on_failure = continue` ensures the destroy is not blocked in environments where the
-# Azure CLI is unavailable or no versions exist.
-# The `depends_on` ensures this runs BEFORE `gallery_image_definition` is destroyed, and
-# `delete_gallery_image_version` (below) depends on this resource so that the azapi-native
-# version deletion runs BEFORE this catch-all CLI cleanup.
-resource "terraform_data" "delete_gallery_image_versions_on_destroy" {
-  for_each = azapi_resource.gallery_image_definition
-
-  # Store the image definition resource ID in state so it is available during destroy.
-  input = each.value.id
-
-  provisioner "local-exec" {
-    when       = destroy
-    on_failure = continue
-    command    = <<-EOT
-      DEFINITION_ID='${self.input}'
-      if ! command -v az > /dev/null 2>&1; then
-        echo "Azure CLI not found; skipping image version cleanup for $$DEFINITION_ID"
-        exit 0
-      fi
-      VERSIONS=$$(az rest --method GET --uri "$$DEFINITION_ID/versions?api-version=2024-03-03" --query "value[].id" -o tsv 2>/dev/null || echo "")
-      if [ -z "$$VERSIONS" ]; then
-        echo "No image versions found in $$DEFINITION_ID"
-        exit 0
-      fi
-      while IFS= read -r VER; do
-        [ -z "$$VER" ] && continue
-        echo "Deleting image version: $$VER"
-        az rest --method DELETE --uri "$$VER?api-version=2024-03-03" 2>/dev/null || echo "Warning: failed to delete $$VER, continuing..."
-      done <<< "$$VERSIONS"
-    EOT
-  }
-
-  depends_on = [azapi_resource.gallery_image_definition]
 }
 
 resource "azapi_resource_action" "delete_gallery_image_version" {
@@ -295,9 +278,5 @@ resource "azapi_resource_action" "delete_gallery_image_version" {
   depends_on = [
     azapi_resource.gallery_image_definition,
     azapi_resource_action.trigger_build,
-    # Run before the catch-all CLI cleanup so azapi-native deletion occurs first.
-    # During destroy, resources are destroyed in reverse dependency order, so
-    # delete_gallery_image_version runs BEFORE delete_gallery_image_versions_on_destroy.
-    terraform_data.delete_gallery_image_versions_on_destroy,
   ]
 }

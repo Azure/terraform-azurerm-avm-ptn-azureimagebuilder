@@ -5,12 +5,12 @@ output "compute_gallery_id" {
 
 output "image_builder_identity_id" {
   description = "The resource ID of the image builder user-assigned identity."
-  value       = azapi_resource.image_builder_identity.id
+  value       = local.image_builder_identity_id
 }
 
 output "image_builder_identity_principal_id" {
   description = "The principal ID of the image builder user-assigned identity."
-  value       = azapi_resource.image_builder_identity.output.properties.principalId
+  value       = local.image_builder_identity_principal_id
 }
 
 output "image_template_id" {
