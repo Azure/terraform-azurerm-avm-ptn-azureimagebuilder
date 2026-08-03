@@ -61,6 +61,7 @@ resource "azapi_resource" "compute_gallery" {
       identity_ids = identity.value.identity_ids
     }
   }
+
   timeouts {
     delete = var.timeouts.compute_gallery_delete
   }
@@ -221,18 +222,12 @@ resource "azapi_resource" "image_template" {
     type         = "UserAssigned"
     identity_ids = [local.image_builder_identity_id]
   }
+
   timeouts {
     create = var.timeouts.image_template_create
     delete = var.timeouts.image_template_delete
     update = var.timeouts.image_template_update
   }
-
-  depends_on = [
-    time_sleep.rbac_propagation,
-    azapi_resource.gallery_image_definition,
-    azapi_resource.staging_rg_role_assignment,
-    azapi_resource.vnet_role_assignment,
-  ]
 
   lifecycle {
     precondition {
@@ -240,6 +235,12 @@ resource "azapi_resource" "image_template" {
       error_message = "compute_gallery_image_definition_name must match a key or the .name of an entry in compute_gallery_image_definitions."
     }
   }
+  depends_on = [
+    time_sleep.rbac_propagation,
+    azapi_resource.gallery_image_definition,
+    azapi_resource.staging_rg_role_assignment,
+    azapi_resource.vnet_role_assignment,
+  ]
 }
 
 resource "terraform_data" "build_trigger" {
@@ -259,11 +260,10 @@ resource "azapi_resource_action" "trigger_build" {
     create = var.timeouts.trigger_build_create
   }
 
-  depends_on = [azapi_resource.image_template]
-
   lifecycle {
     replace_triggered_by = [terraform_data.build_trigger[0]]
   }
+  depends_on = [azapi_resource.image_template]
 }
 
 resource "azapi_resource_action" "delete_gallery_image_version" {

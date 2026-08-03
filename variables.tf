@@ -2,6 +2,7 @@
 
 # --- AVM interface variables ---
 
+
 variable "compute_gallery_image_definition_name" {
   type        = string
   description = "The name of the image definition to publish the new image version to. Must match a key or name in `compute_gallery_image_definitions`."
