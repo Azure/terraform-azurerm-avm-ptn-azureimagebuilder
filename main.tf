@@ -82,6 +82,12 @@ resource "azapi_resource" "gallery_image_definition" {
       hyperVGeneration = each.value.hyper_v_generation
       architecture     = each.value.architecture
       description      = each.value.description
+      features = each.value.security_type != null ? [
+        {
+          name  = "SecurityType"
+          value = each.value.security_type
+        }
+      ] : null
       identifier = {
         publisher = each.value.identifier.publisher
         offer     = each.value.identifier.offer

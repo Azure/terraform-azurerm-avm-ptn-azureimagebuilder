@@ -17,6 +17,7 @@ variable "compute_gallery_image_definitions" {
     hyper_v_generation = optional(string, "V2")
     architecture       = optional(string, "x64")
     description        = optional(string, null)
+    security_type      = optional(string, null)
     identifier = object({
       publisher = string
       offer     = string
@@ -31,6 +32,7 @@ A map of image definitions to create in the compute gallery. The map key is arbi
 - `os_state` - (Optional) Defaults to `Generalized`.
 - `hyper_v_generation` - (Optional) Defaults to `V2`.
 - `architecture` - (Optional) Defaults to `x64`. Possible values: `x64`, `Arm64`.
+- `security_type` - (Optional) Defaults to `null` (no security feature set). Set to `TrustedLaunchSupported`, `ConfidentialVmSupported`, or `TrustedLaunchAndConfidentialVmSupported` to mark the image definition (and versions published to it) compatible with the corresponding VM security type. Requires `hyper_v_generation = "V2"`.
 - `identifier` - (Required) The image identifier (publisher, offer, sku).
 DESCRIPTION
   nullable    = false
@@ -50,6 +52,14 @@ DESCRIPTION
   validation {
     condition     = alltrue([for v in var.compute_gallery_image_definitions : contains(["x64", "Arm64"], v.architecture)])
     error_message = "Each compute_gallery_image_definitions[*].architecture must be 'x64' or 'Arm64'."
+  }
+  validation {
+    condition     = alltrue([for v in var.compute_gallery_image_definitions : v.security_type == null || contains(["TrustedLaunchSupported", "ConfidentialVmSupported", "TrustedLaunchAndConfidentialVmSupported"], v.security_type)])
+    error_message = "Each compute_gallery_image_definitions[*].security_type must be null, 'TrustedLaunchSupported', 'ConfidentialVmSupported', or 'TrustedLaunchAndConfidentialVmSupported'."
+  }
+  validation {
+    condition     = alltrue([for v in var.compute_gallery_image_definitions : v.security_type == null || v.hyper_v_generation == "V2"])
+    error_message = "Each compute_gallery_image_definitions[*].security_type requires hyper_v_generation = 'V2'."
   }
 }
 
