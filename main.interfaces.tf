@@ -1,6 +1,6 @@
 module "avm_interfaces" {
   source  = "Azure/avm-utl-interfaces/azure"
-  version = "0.6.0"
+  version = "0.7.0"
 
   diagnostic_settings              = var.diagnostic_settings
   enable_telemetry                 = var.enable_telemetry
