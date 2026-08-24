@@ -91,6 +91,11 @@ run "basic_aib_creation" {
   command = apply
 
   assert {
+    condition     = try(azapi_resource.gallery_image_definition["linux"].body.properties.features, null) == null
+    error_message = "Gallery image features should be omitted when security_type is not set."
+  }
+
+  assert {
     condition     = output.image_template_id != ""
     error_message = "Image template ID should not be empty."
   }
@@ -104,6 +109,108 @@ run "basic_aib_creation" {
     condition     = output.image_builder_identity_id != ""
     error_message = "Image builder identity ID should not be empty."
   }
+}
+
+run "gallery_image_security_types_are_serialized" {
+  command = apply
+
+  variables {
+    compute_gallery_image_definition_name = "trusted-launch"
+    compute_gallery_image_definitions = {
+      trusted_launch = {
+        name          = "trusted-launch"
+        os_type       = "Linux"
+        security_type = "TrustedLaunchSupported"
+        identifier = {
+          publisher = "TestOrg"
+          offer     = "Ubuntu"
+          sku       = "trusted-launch"
+        }
+      }
+      confidential_vm = {
+        name          = "confidential-vm"
+        os_type       = "Linux"
+        security_type = "ConfidentialVmSupported"
+        identifier = {
+          publisher = "TestOrg"
+          offer     = "Ubuntu"
+          sku       = "confidential-vm"
+        }
+      }
+      trusted_launch_and_confidential_vm = {
+        name          = "trusted-launch-and-confidential-vm"
+        os_type       = "Linux"
+        security_type = "TrustedLaunchAndConfidentialVmSupported"
+        identifier = {
+          publisher = "TestOrg"
+          offer     = "Ubuntu"
+          sku       = "trusted-launch-and-confidential-vm"
+        }
+      }
+    }
+  }
+
+  assert {
+    condition     = azapi_resource.gallery_image_definition["trusted_launch"].body.properties.features == [{ name = "SecurityType", value = "TrustedLaunchSupported" }]
+    error_message = "TrustedLaunchSupported should be serialized as the gallery image SecurityType feature."
+  }
+
+  assert {
+    condition     = azapi_resource.gallery_image_definition["confidential_vm"].body.properties.features == [{ name = "SecurityType", value = "ConfidentialVmSupported" }]
+    error_message = "ConfidentialVmSupported should be serialized as the gallery image SecurityType feature."
+  }
+
+  assert {
+    condition     = azapi_resource.gallery_image_definition["trusted_launch_and_confidential_vm"].body.properties.features == [{ name = "SecurityType", value = "TrustedLaunchAndConfidentialVmSupported" }]
+    error_message = "TrustedLaunchAndConfidentialVmSupported should be serialized as the gallery image SecurityType feature."
+  }
+}
+
+run "invalid_gallery_image_security_type_rejected" {
+  command = plan
+
+  variables {
+    compute_gallery_image_definitions = {
+      linux = {
+        name          = "ubuntu-2404"
+        os_type       = "Linux"
+        security_type = "InvalidSecurityType"
+        identifier = {
+          publisher = "TestOrg"
+          offer     = "Ubuntu"
+          sku       = "24.04-LTS"
+        }
+      }
+    }
+  }
+
+  expect_failures = [
+    var.compute_gallery_image_definitions,
+  ]
+}
+
+run "gallery_image_security_type_requires_generation_two" {
+  command = plan
+
+  variables {
+    compute_gallery_image_definitions = {
+      linux = {
+        name               = "ubuntu-2404"
+        os_type            = "Linux"
+        hyper_v_generation = "V1"
+        security_type      = "TrustedLaunchSupported"
+        identifier = {
+          publisher = "TestOrg"
+          offer     = "Ubuntu"
+          sku       = "24.04-LTS"
+        }
+      }
+    }
+  }
+
+  expect_failures = [
+    var.compute_gallery_image_definitions,
+  ]
 }
 
 run "telemetry_enabled" {
