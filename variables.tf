@@ -32,7 +32,7 @@ A map of image definitions to create in the compute gallery. The map key is arbi
 - `os_state` - (Optional) Defaults to `Generalized`.
 - `hyper_v_generation` - (Optional) Defaults to `V2`.
 - `architecture` - (Optional) Defaults to `x64`. Possible values: `x64`, `Arm64`.
-- `security_type` - (Optional) Defaults to `null` (no security feature set). Set to `TrustedLaunchSupported`, `ConfidentialVmSupported`, or `TrustedLaunchAndConfidentialVmSupported` to mark the image definition (and versions published to it) compatible with the corresponding VM security type. Requires `hyper_v_generation = "V2"`.
+- `security_type` - (Optional) Defaults to `null` (no security feature set). Set to `TrustedLaunchSupported`, `ConfidentialVmSupported`, or `TrustedLaunchAndConfidentialVmSupported` to mark the image definition (and versions published to it) compatible with the corresponding VM security type. Requires `hyper_v_generation = "V2"`. Azure applies this setting when the image definition is created; use a new image definition to change it later.
 - `identifier` - (Required) The image identifier (publisher, offer, sku).
 DESCRIPTION
   nullable    = false
