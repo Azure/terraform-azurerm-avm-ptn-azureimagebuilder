@@ -40,8 +40,10 @@ module "test" {
   compute_gallery_image_definition_name = "ubuntu-2404"
   compute_gallery_image_definitions = {
     linux = {
-      name    = "ubuntu-2404"
-      os_type = "Linux"
+      name               = "ubuntu-2404"
+      os_type            = "Linux"
+      hyper_v_generation = "V2"
+      security_type      = "TrustedLaunchSupported"
       identifier = {
         publisher = "MyOrg"
         offer     = "Ubuntu"
