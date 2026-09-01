@@ -11,7 +11,7 @@ It orchestrates the creation of a User-Assigned Managed Identity, Azure Compute 
 - Azure Compute Gallery with customizable image definitions
 - Image Template with support for PlatformImage, ManagedImage, and SharedImageVersion sources
 - Customization steps (Shell, PowerShell, WindowsRestart, WindowsUpdate, File)
-- Flexible distribution targets with region replication
+- Shared Image, managed image, and VHD distribution targets
 - VNet integration for private builds
 - Opt-in VM boot optimization for supported regions
 - Opt-in build triggering with nonce-based re-trigger support and Shared Image Gallery version cleanup on destroy
@@ -23,6 +23,12 @@ It orchestrates the creation of a User-Assigned Managed Identity, Azure Compute 
 ## Naming notes
 
 Azure Compute Gallery names can contain alphanumerics, underscores, and periods, but they cannot contain hyphens. When `compute_gallery_name` is null, the generated gallery name replaces hyphens in `name` with underscores. Set `compute_gallery_name` to use a specific compliant gallery name.
+
+## Secure VHD distribution
+
+Set `image_template_distribute[*].type` to `VHD` to produce a VHD artifact. Set `uri` to a full HTTPS blob URI for a custom destination, or omit it to use the Image Builder staging resource group.
+
+For a custom destination, grant the Image Builder user-assigned managed identity the minimum required data-plane access, such as `Storage Blob Data Contributor` scoped to the destination storage account or container. Keep anonymous blob access disabled. Avoid SAS tokens and other credentials in `uri`, because Terraform records this value in plans and state.
 
 <!-- markdownlint-disable MD033 -->
 ## Requirements
@@ -257,7 +263,25 @@ Default: `null`
 
 ### <a name="input_image_template_distribute"></a> [image\_template\_distribute](#input\_image\_template\_distribute)
 
-Description: Distribution targets for the image template. If null, a default SharedImage distribution to the compute gallery will be created using `versioning.scheme = "Latest"` with `major = 1`, which produces version `1.0.0` for the first build. This default versioning ensures that the `build.gallery_image_version_name` (default `"1.0.0"`) correctly identifies the version to clean up on destroy.
+Description: Distribution targets for the image template. If null, a default SharedImage distribution to the compute gallery is created using `versioning.scheme = "Latest"` with `major = 1`, which produces version `1.0.0` for the first build.
+
+- `type` - (Required) Distribution type. Possible values: `SharedImage`, `ManagedImage`, `VHD`.
+- `run_output_name` - (Required) Name of the Image Builder run output.
+- `gallery_image_id` - (Optional, SharedImage only) Resource ID of the target gallery image definition. Defaults to the gallery image definition created by this module.
+- `target_regions` - (Optional, SharedImage only) Replication regions for the gallery image version.
+- `target_regions.name` - (Required) Azure region name.
+- `target_regions.replica_count` - (Optional) Number of replicas. Defaults to `1`.
+- `target_regions.storage_account_type` - (Optional) Storage account type. Defaults to `Standard_ZRS`.
+- `exclude_from_latest` - (Optional, SharedImage only) Whether the image version is excluded from the latest version. Defaults to `false`.
+- `artifact_tags` - (Optional) Tags applied to the distributed artifact.
+- `image_id` - (Required for ManagedImage) Resource ID of the managed image to create.
+- `location` - (Required for ManagedImage) Azure region for the managed image.
+- `uri` - (Optional, VHD only) Full HTTPS URI of the destination VHD blob. If omitted, Image Builder stores the VHD in its staging resource group. For a custom destination, grant the Image Builder user-assigned managed identity write access to the target storage container. Avoid SAS tokens and other credentials because this value appears in Terraform plans and state.
+- `versioning` - (Optional, SharedImage only) Version-generation settings.
+- `versioning.scheme` - (Required when versioning is set) Versioning scheme. Possible values: `Latest`, `Source`.
+- `versioning.major` - (Optional) Major version used by the `Latest` scheme.
+
+The default SharedImage versioning ensures that `build.gallery_image_version_name` (default `"1.0.0"`) identifies the version to clean up on destroy.
 
 Type:
 
@@ -275,6 +299,7 @@ list(object({
     artifact_tags       = optional(map(string), null)
     image_id            = optional(string, null)
     location            = optional(string, null)
+    uri                 = optional(string, null)
     versioning = optional(object({
       scheme = string
       major  = optional(number, null)
