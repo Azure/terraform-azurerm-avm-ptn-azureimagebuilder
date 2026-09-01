@@ -248,17 +248,45 @@ variable "image_template_distribute" {
     artifact_tags       = optional(map(string), null)
     image_id            = optional(string, null)
     location            = optional(string, null)
+    uri                 = optional(string, null)
     versioning = optional(object({
       scheme = string
       major  = optional(number, null)
     }), null)
   }))
   default     = null
-  description = "Distribution targets for the image template. If null, a default SharedImage distribution to the compute gallery will be created using `versioning.scheme = \"Latest\"` with `major = 1`, which produces version `1.0.0` for the first build. This default versioning ensures that the `build.gallery_image_version_name` (default `\"1.0.0\"`) correctly identifies the version to clean up on destroy."
+  description = <<DESCRIPTION
+Distribution targets for the image template. If null, a default SharedImage distribution to the compute gallery is created using `versioning.scheme = "Latest"` with `major = 1`, which produces version `1.0.0` for the first build.
+
+- `type` - (Required) Distribution type. Possible values: `SharedImage`, `ManagedImage`, `VHD`.
+- `run_output_name` - (Required) Name of the Image Builder run output.
+- `gallery_image_id` - (Optional, SharedImage only) Resource ID of the target gallery image definition. Defaults to the gallery image definition created by this module.
+- `target_regions` - (Optional, SharedImage only) Replication regions for the gallery image version.
+- `target_regions.name` - (Required) Azure region name.
+- `target_regions.replica_count` - (Optional) Number of replicas. Defaults to `1`.
+- `target_regions.storage_account_type` - (Optional) Storage account type. Defaults to `Standard_ZRS`.
+- `exclude_from_latest` - (Optional, SharedImage only) Whether the image version is excluded from the latest version. Defaults to `false`.
+- `artifact_tags` - (Optional) Tags applied to the distributed artifact.
+- `image_id` - (Required for ManagedImage) Resource ID of the managed image to create.
+- `location` - (Required for ManagedImage) Azure region for the managed image.
+- `uri` - (Optional, VHD only) Full HTTPS URI of the destination VHD blob. If omitted, Image Builder stores the VHD in its staging resource group. For a custom destination, grant the Image Builder user-assigned managed identity write access to the target storage container. Avoid SAS tokens and other credentials because this value appears in Terraform plans and state.
+- `versioning` - (Optional, SharedImage only) Version-generation settings.
+- `versioning.scheme` - (Required when versioning is set) Versioning scheme. Possible values: `Latest`, `Source`.
+- `versioning.major` - (Optional) Major version used by the `Latest` scheme.
+
+The default SharedImage versioning ensures that `build.gallery_image_version_name` (default `"1.0.0"`) identifies the version to clean up on destroy.
+DESCRIPTION
 
   validation {
-    condition     = var.image_template_distribute == null || alltrue([for d in coalesce(var.image_template_distribute, []) : contains(["SharedImage", "ManagedImage"], d.type)])
-    error_message = "Each image_template_distribute[*].type must be 'SharedImage' or 'ManagedImage' (VHD distribution is not supported in this version)."
+    condition     = var.image_template_distribute == null || alltrue([for d in coalesce(var.image_template_distribute, []) : contains(["SharedImage", "ManagedImage", "VHD"], d.type)])
+    error_message = "Each image_template_distribute[*].type must be 'SharedImage', 'ManagedImage', or 'VHD'."
+  }
+  validation {
+    condition = var.image_template_distribute == null || alltrue([
+      for d in coalesce(var.image_template_distribute, []) :
+      d.uri == null || (d.type == "VHD" && startswith(lower(d.uri), "https://"))
+    ])
+    error_message = "image_template_distribute[*].uri may only be set for VHD distributions and must be an HTTPS URI."
   }
   validation {
     condition     = var.image_template_distribute == null || alltrue([for d in coalesce(var.image_template_distribute, []) : d.type != "ManagedImage" || (d.image_id != null && d.location != null)])

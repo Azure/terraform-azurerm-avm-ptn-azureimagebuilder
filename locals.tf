@@ -3,14 +3,14 @@ locals {
   contributor_role_definition_guid = "b24988ac-6180-42a0-ab88-20f7382dd24c"
   contributor_role_definition_id   = provider::azapi::subscription_resource_id(data.azapi_client_config.current.subscription_id, "Microsoft.Authorization/roleDefinitions", [local.contributor_role_definition_guid])
   default_gallery_image_id         = "${azapi_resource.compute_gallery.id}/images/${local.resolved_image_definition_name}"
-  # Per-type distribute body: only SharedImage uses galleryImageId/targetRegions/versioning;
-  # ManagedImage uses imageId+location; VHD would use uri (not supported in v0.1).
+  # Per-type distribute body: SharedImage uses galleryImageId/targetRegions/versioning,
+  # ManagedImage uses imageId/location, and VHD optionally uses uri.
   distribute = [
     for d in local.distribute_input : {
       for k, v in {
         type              = d.type
         runOutputName     = d.run_output_name
-        excludeFromLatest = d.exclude_from_latest
+        excludeFromLatest = d.type == "SharedImage" ? d.exclude_from_latest : null
         artifactTags      = d.artifact_tags
         galleryImageId    = d.type == "SharedImage" ? coalesce(d.gallery_image_id, local.default_gallery_image_id) : null
         targetRegions = d.type == "SharedImage" && d.target_regions != null ? [
@@ -28,6 +28,7 @@ locals {
         } : null
         imageId  = d.type == "ManagedImage" ? d.image_id : null
         location = d.type == "ManagedImage" ? d.location : null
+        uri      = d.type == "VHD" ? d.uri : null
       } : k => v if v != null
     }
   ]
@@ -45,6 +46,7 @@ locals {
       artifact_tags       = null
       image_id            = null
       location            = null
+      uri                 = null
       versioning = {
         scheme = "Latest"
         major  = 1

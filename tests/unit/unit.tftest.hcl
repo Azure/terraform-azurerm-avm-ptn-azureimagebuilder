@@ -109,6 +109,212 @@ run "basic_aib_creation" {
     condition     = output.image_builder_identity_id != ""
     error_message = "Image builder identity ID should not be empty."
   }
+
+  assert {
+    condition     = azapi_resource.image_template.body.properties.distribute[0].excludeFromLatest == false
+    error_message = "The default SharedImage distribution should preserve excludeFromLatest."
+  }
+}
+
+run "vhd_distribution_with_uri_is_serialized" {
+  command = apply
+
+  variables {
+    image_template_distribute = [
+      {
+        artifact_tags = {
+          environment = "test"
+        }
+        run_output_name = "vhd-output"
+        type            = "VHD"
+        uri             = "https://example.blob.core.windows.net/images/example.vhd"
+      }
+    ]
+  }
+
+  assert {
+    condition     = azapi_resource.image_template.body.properties.distribute[0].type == "VHD"
+    error_message = "The VHD distribution type should be serialized."
+  }
+
+  assert {
+    condition     = azapi_resource.image_template.body.properties.distribute[0].runOutputName == "vhd-output"
+    error_message = "The VHD run output name should be serialized."
+  }
+
+  assert {
+    condition     = azapi_resource.image_template.body.properties.distribute[0].uri == "https://example.blob.core.windows.net/images/example.vhd"
+    error_message = "The VHD destination URI should be serialized."
+  }
+
+  assert {
+    condition     = azapi_resource.image_template.body.properties.distribute[0].artifactTags.environment == "test"
+    error_message = "The VHD artifact tags should be serialized."
+  }
+
+  assert {
+    condition     = try(azapi_resource.image_template.body.properties.distribute[0].excludeFromLatest, null) == null
+    error_message = "SharedImage-only excludeFromLatest must be omitted from VHD distributions."
+  }
+}
+
+run "vhd_distribution_without_uri_uses_staging_output" {
+  command = apply
+
+  variables {
+    image_template_distribute = [
+      {
+        run_output_name = "staging-vhd-output"
+        type            = "VHD"
+      }
+    ]
+  }
+
+  assert {
+    condition     = azapi_resource.image_template.body.properties.distribute[0].type == "VHD"
+    error_message = "The VHD distribution type should be serialized without an explicit URI."
+  }
+
+  assert {
+    condition     = try(azapi_resource.image_template.body.properties.distribute[0].uri, null) == null
+    error_message = "The VHD URI should be omitted when the staging output is requested."
+  }
+}
+
+run "shared_image_and_vhd_distributions_are_serialized_together" {
+  command = apply
+
+  variables {
+    image_template_distribute = [
+      {
+        exclude_from_latest = true
+        run_output_name     = "gallery-output"
+        target_regions = [
+          {
+            name = "eastus"
+          }
+        ]
+        type = "SharedImage"
+        versioning = {
+          major  = 2
+          scheme = "Latest"
+        }
+      },
+      {
+        run_output_name = "vhd-output"
+        type            = "VHD"
+        uri             = "https://example.blob.core.windows.net/images/example.vhd"
+      }
+    ]
+  }
+
+  assert {
+    condition     = length(azapi_resource.image_template.body.properties.distribute) == 2
+    error_message = "Both SharedImage and VHD distributions should be serialized."
+  }
+
+  assert {
+    condition     = azapi_resource.image_template.body.properties.distribute[0].excludeFromLatest == true
+    error_message = "SharedImage excludeFromLatest should preserve an explicit true value."
+  }
+
+  assert {
+    condition     = azapi_resource.image_template.body.properties.distribute[0].versioning.scheme == "Latest" && azapi_resource.image_template.body.properties.distribute[0].versioning.major == 2
+    error_message = "SharedImage versioning should be serialized in a mixed distribution list."
+  }
+
+  assert {
+    condition     = try(azapi_resource.image_template.body.properties.distribute[0].uri, null) == null
+    error_message = "VHD-only uri must be omitted from SharedImage distributions."
+  }
+
+  assert {
+    condition     = azapi_resource.image_template.body.properties.distribute[1].uri == "https://example.blob.core.windows.net/images/example.vhd"
+    error_message = "The VHD URI should be serialized in a mixed distribution list."
+  }
+
+  assert {
+    condition     = try(azapi_resource.image_template.body.properties.distribute[1].excludeFromLatest, null) == null
+    error_message = "SharedImage-only excludeFromLatest must be omitted from the VHD distribution."
+  }
+}
+
+run "managed_image_distribution_omits_shared_image_fields" {
+  command = apply
+
+  variables {
+    image_template_distribute = [
+      {
+        image_id        = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-images/providers/Microsoft.Compute/images/example"
+        location        = "eastus"
+        run_output_name = "managed-output"
+        type            = "ManagedImage"
+      }
+    ]
+  }
+
+  assert {
+    condition     = azapi_resource.image_template.body.properties.distribute[0].imageId == var.image_template_distribute[0].image_id
+    error_message = "The managed image ID should be serialized."
+  }
+
+  assert {
+    condition     = try(azapi_resource.image_template.body.properties.distribute[0].excludeFromLatest, null) == null
+    error_message = "SharedImage-only excludeFromLatest must be omitted from ManagedImage distributions."
+  }
+}
+
+run "invalid_distribution_type_rejected" {
+  command = plan
+
+  variables {
+    image_template_distribute = [
+      {
+        run_output_name = "invalid-output"
+        type            = "Invalid"
+      }
+    ]
+  }
+
+  expect_failures = [
+    var.image_template_distribute,
+  ]
+}
+
+run "vhd_distribution_rejects_non_https_uri" {
+  command = plan
+
+  variables {
+    image_template_distribute = [
+      {
+        run_output_name = "insecure-vhd-output"
+        type            = "VHD"
+        uri             = "http://example.blob.core.windows.net/images/example.vhd"
+      }
+    ]
+  }
+
+  expect_failures = [
+    var.image_template_distribute,
+  ]
+}
+
+run "non_vhd_distribution_rejects_uri" {
+  command = plan
+
+  variables {
+    image_template_distribute = [
+      {
+        run_output_name = "gallery-output"
+        type            = "SharedImage"
+        uri             = "https://example.blob.core.windows.net/images/example.vhd"
+      }
+    ]
+  }
+
+  expect_failures = [
+    var.image_template_distribute,
+  ]
 }
 
 run "gallery_image_security_types_are_serialized" {
