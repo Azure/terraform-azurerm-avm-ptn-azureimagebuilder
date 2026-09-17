@@ -117,7 +117,7 @@ module "test" {
   name             = "aib-${random_pet.name.id}"
   parent_id        = azapi_resource.resource_group.id
   build            = { enabled = true }
-  enable_telemetry = var.enable_telemetry
+  enable_telemetry = false
   image_template_customization_steps = [
     {
       type = "Shell"

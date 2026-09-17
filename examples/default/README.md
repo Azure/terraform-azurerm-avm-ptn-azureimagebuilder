@@ -61,7 +61,7 @@ module "test" {
   location         = azapi_resource.resource_group.location
   name             = "aib-${random_pet.name.id}"
   parent_id        = azapi_resource.resource_group.id
-  enable_telemetry = var.enable_telemetry
+  enable_telemetry = false
 }
 ```
 
