@@ -1,0 +1,10 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Azure/azure-verified-modules-tools/main/src/Avm.Authoring/Resources/Schemas/v1/avm-module-metadata.schema.json",
+  "moduleDisplayName": "Azure Image Builder",
+  "moduleDescription": "Intended AVM Terraform pattern module for Azure Image Builder.",
+  "canonicalType": "virtual-machine-images/azure-image-builder",
+  "owners": [
+    "ethanjenkins1"
+  ],
+  "telemetryIdPrefix": "46d3xtrf.ptn.69abda8"
+}
