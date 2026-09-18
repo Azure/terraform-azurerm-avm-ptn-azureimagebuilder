@@ -117,7 +117,7 @@ module "test" {
   name             = "aib-${random_pet.name.id}"
   parent_id        = azapi_resource.resource_group.id
   build            = { enabled = true }
-  enable_telemetry = false
+  enable_telemetry = var.enable_telemetry
   image_template_customization_steps = [
     {
       type = "Shell"
@@ -174,7 +174,7 @@ If it is set to false, then no telemetry will be collected.
 
 Type: `bool`
 
-Default: `true`
+Default: `false`
 
 ## Outputs
 
