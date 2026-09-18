@@ -98,7 +98,7 @@ module "test" {
   parent_id                = azapi_resource.resource_group.id
   build                    = { enabled = true }
   build_timeout_in_minutes = 360
-  enable_telemetry         = false
+  enable_telemetry         = var.enable_telemetry
   image_template_customization_steps = [
     {
       type = "PowerShell"
