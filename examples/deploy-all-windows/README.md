@@ -93,6 +93,9 @@ locals {
 
 module "test" {
   source = "../../"
+  providers = {
+    azapi = azapi
+  }
 
   compute_gallery_image_definition_name = "windows-2022-devops"
   compute_gallery_image_definitions = {

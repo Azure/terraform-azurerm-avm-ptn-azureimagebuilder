@@ -41,7 +41,7 @@ mock_provider "azapi" {
     }
   }
 }
-mock_provider "modtm" {}
+
 mock_provider "random" {
   mock_resource "random_uuid" {
     defaults = {
@@ -49,6 +49,7 @@ mock_provider "random" {
     }
   }
 }
+
 mock_provider "time" {}
 
 variables {
@@ -107,6 +108,11 @@ run "basic_aib_creation" {
     condition     = azapi_resource.image_template.body.properties.distribute[0].excludeFromLatest == false
     error_message = "The default SharedImage distribution should preserve excludeFromLatest."
   }
+  providers = {
+    azapi  = azapi
+    random = random
+    time   = time
+  }
 }
 
 run "vhd_distribution_with_uri_is_serialized" {
@@ -149,6 +155,11 @@ run "vhd_distribution_with_uri_is_serialized" {
     condition     = try(azapi_resource.image_template.body.properties.distribute[0].excludeFromLatest, null) == null
     error_message = "SharedImage-only excludeFromLatest must be omitted from VHD distributions."
   }
+  providers = {
+    azapi  = azapi
+    random = random
+    time   = time
+  }
 }
 
 run "vhd_distribution_without_uri_uses_staging_output" {
@@ -171,6 +182,11 @@ run "vhd_distribution_without_uri_uses_staging_output" {
   assert {
     condition     = try(azapi_resource.image_template.body.properties.distribute[0].uri, null) == null
     error_message = "The VHD URI should be omitted when the staging output is requested."
+  }
+  providers = {
+    azapi  = azapi
+    random = random
+    time   = time
   }
 }
 
@@ -230,6 +246,11 @@ run "shared_image_and_vhd_distributions_are_serialized_together" {
     condition     = try(azapi_resource.image_template.body.properties.distribute[1].excludeFromLatest, null) == null
     error_message = "SharedImage-only excludeFromLatest must be omitted from the VHD distribution."
   }
+  providers = {
+    azapi  = azapi
+    random = random
+    time   = time
+  }
 }
 
 run "managed_image_distribution_omits_shared_image_fields" {
@@ -255,6 +276,11 @@ run "managed_image_distribution_omits_shared_image_fields" {
     condition     = try(azapi_resource.image_template.body.properties.distribute[0].excludeFromLatest, null) == null
     error_message = "SharedImage-only excludeFromLatest must be omitted from ManagedImage distributions."
   }
+  providers = {
+    azapi  = azapi
+    random = random
+    time   = time
+  }
 }
 
 run "invalid_distribution_type_rejected" {
@@ -272,6 +298,11 @@ run "invalid_distribution_type_rejected" {
   expect_failures = [
     var.image_template_distribute,
   ]
+  providers = {
+    azapi  = azapi
+    random = random
+    time   = time
+  }
 }
 
 run "vhd_distribution_rejects_non_https_uri" {
@@ -290,6 +321,11 @@ run "vhd_distribution_rejects_non_https_uri" {
   expect_failures = [
     var.image_template_distribute,
   ]
+  providers = {
+    azapi  = azapi
+    random = random
+    time   = time
+  }
 }
 
 run "non_vhd_distribution_rejects_uri" {
@@ -308,6 +344,11 @@ run "non_vhd_distribution_rejects_uri" {
   expect_failures = [
     var.image_template_distribute,
   ]
+  providers = {
+    azapi  = azapi
+    random = random
+    time   = time
+  }
 }
 
 run "gallery_image_security_types_are_serialized" {
@@ -363,6 +404,11 @@ run "gallery_image_security_types_are_serialized" {
     condition     = azapi_resource.gallery_image_definition["trusted_launch_and_confidential_vm"].body.properties.features == [{ name = "SecurityType", value = "TrustedLaunchAndConfidentialVmSupported" }]
     error_message = "TrustedLaunchAndConfidentialVmSupported should be serialized as the gallery image SecurityType feature."
   }
+  providers = {
+    azapi  = azapi
+    random = random
+    time   = time
+  }
 }
 
 run "invalid_gallery_image_security_type_rejected" {
@@ -386,6 +432,11 @@ run "invalid_gallery_image_security_type_rejected" {
   expect_failures = [
     var.compute_gallery_image_definitions,
   ]
+  providers = {
+    azapi  = azapi
+    random = random
+    time   = time
+  }
 }
 
 run "gallery_image_security_type_requires_generation_two" {
@@ -410,14 +461,24 @@ run "gallery_image_security_type_requires_generation_two" {
   expect_failures = [
     var.compute_gallery_image_definitions,
   ]
+  providers = {
+    azapi  = azapi
+    random = random
+    time   = time
+  }
 }
 
 run "telemetry_enabled" {
   command = apply
 
   assert {
-    condition     = length(modtm_telemetry.telemetry) == 1
+    condition     = length(azapi_resource.telemetry) == 1
     error_message = "Telemetry resource should be created when enable_telemetry is true."
+  }
+  providers = {
+    azapi  = azapi
+    random = random
+    time   = time
   }
 }
 
@@ -429,8 +490,13 @@ run "telemetry_disabled" {
   }
 
   assert {
-    condition     = length(modtm_telemetry.telemetry) == 0
+    condition     = length(azapi_resource.telemetry) == 0
     error_message = "Telemetry resource should not be created when enable_telemetry is false."
+  }
+  providers = {
+    azapi  = azapi
+    random = random
+    time   = time
   }
 }
 
@@ -450,6 +516,11 @@ run "no_build_by_default" {
   assert {
     condition     = length(azapi_resource_action.delete_gallery_image_version) == 0
     error_message = "Gallery image version cleanup should not be created when builds are disabled."
+  }
+  providers = {
+    azapi  = azapi
+    random = random
+    time   = time
   }
 }
 
@@ -474,6 +545,11 @@ run "build_enabled_triggers_build_and_cleanup" {
     condition     = length(azapi_resource_action.delete_gallery_image_version) == 1
     error_message = "Shared Image Gallery version cleanup should be created for module-triggered builds."
   }
+  providers = {
+    azapi  = azapi
+    random = random
+    time   = time
+  }
 }
 
 run "build_cleanup_can_be_disabled" {
@@ -495,6 +571,11 @@ run "build_cleanup_can_be_disabled" {
     condition     = length(azapi_resource_action.delete_gallery_image_version) == 0
     error_message = "Gallery image version cleanup should not be created when cleanup is disabled."
   }
+  providers = {
+    azapi  = azapi
+    random = random
+    time   = time
+  }
 }
 
 run "optimize_vm_boot_omitted_by_default" {
@@ -503,6 +584,11 @@ run "optimize_vm_boot_omitted_by_default" {
   assert {
     condition     = try(azapi_resource.image_template.body.properties.optimize, null) == null
     error_message = "VM boot optimization should be omitted by default."
+  }
+  providers = {
+    azapi  = azapi
+    random = random
+    time   = time
   }
 }
 
@@ -517,6 +603,11 @@ run "optimize_vm_boot_enabled_sets_body" {
     condition     = azapi_resource.image_template.body.properties.optimize.vmBoot.state == "Enabled"
     error_message = "VM boot optimization should be enabled when optimize_vm_boot is true."
   }
+  providers = {
+    azapi  = azapi
+    random = random
+    time   = time
+  }
 }
 
 run "gallery_rbac_uses_contributor" {
@@ -525,6 +616,11 @@ run "gallery_rbac_uses_contributor" {
   assert {
     condition     = endswith(azapi_resource.gallery_role_assignment.body.properties.roleDefinitionId, "/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c")
     error_message = "Gallery RBAC should use the Contributor role definition."
+  }
+  providers = {
+    azapi  = azapi
+    random = random
+    time   = time
   }
 }
 
@@ -542,6 +638,11 @@ run "lock_creation" {
     condition     = length(azapi_resource.lock) == 1
     error_message = "Lock should be created when lock is specified."
   }
+  providers = {
+    azapi  = azapi
+    random = random
+    time   = time
+  }
 }
 
 run "no_lock_by_default" {
@@ -551,6 +652,11 @@ run "no_lock_by_default" {
     condition     = length(azapi_resource.lock) == 0
     error_message = "Lock should not be created when lock is null."
   }
+  providers = {
+    azapi  = azapi
+    random = random
+    time   = time
+  }
 }
 
 run "staging_rg_not_created_by_default" {
@@ -559,6 +665,11 @@ run "staging_rg_not_created_by_default" {
   assert {
     condition     = length(azapi_resource.staging_resource_group) == 0
     error_message = "Staging RG should not be created when staging_resource_group_name is null."
+  }
+  providers = {
+    azapi  = azapi
+    random = random
+    time   = time
   }
 }
 
@@ -577,6 +688,11 @@ run "staging_rg_created_when_set" {
   assert {
     condition     = length(azapi_resource.staging_rg_role_assignment) == 1
     error_message = "Staging RG RBAC should be created when staging_resource_group_name is set."
+  }
+  providers = {
+    azapi  = azapi
+    random = random
+    time   = time
   }
 }
 
@@ -600,6 +716,11 @@ run "byo_image_builder_identity_used_when_set" {
   assert {
     condition     = azapi_resource.gallery_role_assignment.body.properties.principalId == data.azapi_resource.image_builder_identity[0].output.properties.principalId
     error_message = "Gallery RBAC should target the BYO identity principal ID."
+  }
+  providers = {
+    azapi  = azapi
+    random = random
+    time   = time
   }
 }
 
@@ -629,6 +750,11 @@ run "byo_staging_rg_used_when_set" {
     condition     = azapi_resource.image_template.body.properties.stagingResourceGroup == var.staging_resource_group_resource_id
     error_message = "The image template should use the BYO staging resource group ID."
   }
+  providers = {
+    azapi  = azapi
+    random = random
+    time   = time
+  }
 }
 
 run "staging_rg_name_and_id_rejected" {
@@ -642,6 +768,11 @@ run "staging_rg_name_and_id_rejected" {
   expect_failures = [
     var.staging_resource_group_name
   ]
+  providers = {
+    azapi  = azapi
+    random = random
+    time   = time
+  }
 }
 
 run "timeouts_can_be_configured" {
@@ -687,6 +818,11 @@ run "timeouts_can_be_configured" {
     condition     = azapi_resource_action.trigger_build[0].timeouts.create == "5h"
     error_message = "Build trigger create timeout should be configurable."
   }
+  providers = {
+    azapi  = azapi
+    random = random
+    time   = time
+  }
 }
 
 run "invalid_compute_gallery_name_rejected" {
@@ -699,6 +835,11 @@ run "invalid_compute_gallery_name_rejected" {
   expect_failures = [
     var.compute_gallery_name
   ]
+  providers = {
+    azapi  = azapi
+    random = random
+    time   = time
+  }
 }
 
 run "invalid_platform_image_source_rejected" {
@@ -713,6 +854,11 @@ run "invalid_platform_image_source_rejected" {
   expect_failures = [
     var.image_template_image_source
   ]
+  providers = {
+    azapi  = azapi
+    random = random
+    time   = time
+  }
 }
 
 run "invalid_managed_image_source_rejected" {
@@ -727,6 +873,11 @@ run "invalid_managed_image_source_rejected" {
   expect_failures = [
     var.image_template_image_source
   ]
+  providers = {
+    azapi  = azapi
+    random = random
+    time   = time
+  }
 }
 
 run "invalid_shared_image_source_rejected" {
@@ -741,4 +892,9 @@ run "invalid_shared_image_source_rejected" {
   expect_failures = [
     var.image_template_image_source
   ]
+  providers = {
+    azapi  = azapi
+    random = random
+    time   = time
+  }
 }

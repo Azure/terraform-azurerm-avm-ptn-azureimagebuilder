@@ -73,6 +73,9 @@ locals {
 
 module "test" {
   source = "../../"
+  providers = {
+    azapi = azapi
+  }
 
   compute_gallery_image_definition_name = "ubuntu-2204-devops"
   compute_gallery_image_definitions = {
