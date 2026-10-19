@@ -39,10 +39,6 @@ The following requirements are needed by this module:
 
 - <a name="requirement_azapi"></a> [azapi](#requirement\_azapi) (~> 2.12)
 
-- <a name="requirement_modtm"></a> [modtm](#requirement\_modtm) (~> 0.3)
-
-- <a name="requirement_random"></a> [random](#requirement\_random) (~> 3.5)
-
 - <a name="requirement_time"></a> [time](#requirement\_time) (~> 0.12)
 
 ## Resources
@@ -59,17 +55,16 @@ The following resources are used by this module:
 - [azapi_resource.role_assignments](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource) (resource)
 - [azapi_resource.staging_resource_group](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource) (resource)
 - [azapi_resource.staging_rg_role_assignment](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource) (resource)
+- [azapi_resource.telemetry](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource) (resource)
 - [azapi_resource.vnet_role_assignment](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource) (resource)
 - [azapi_resource_action.delete_gallery_image_version](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource_action) (resource)
 - [azapi_resource_action.trigger_build](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource_action) (resource)
-- [modtm_telemetry.telemetry](https://registry.terraform.io/providers/azure/modtm/latest/docs/resources/telemetry) (resource)
-- [random_uuid.telemetry](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/uuid) (resource)
 - [terraform_data.build_trigger](https://registry.terraform.io/providers/hashicorp/terraform/latest/docs/resources/data) (resource)
+- [terraform_data.telemetry](https://registry.terraform.io/providers/hashicorp/terraform/latest/docs/resources/data) (resource)
 - [time_sleep.rbac_propagation](https://registry.terraform.io/providers/hashicorp/time/latest/docs/resources/sleep) (resource)
 - [azapi_client_config.current](https://registry.terraform.io/providers/Azure/azapi/latest/docs/data-sources/client_config) (data source)
 - [azapi_client_config.telemetry](https://registry.terraform.io/providers/Azure/azapi/latest/docs/data-sources/client_config) (data source)
 - [azapi_resource.image_builder_identity](https://registry.terraform.io/providers/Azure/azapi/latest/docs/data-sources/resource) (data source)
-- [modtm_module_source.telemetry](https://registry.terraform.io/providers/azure/modtm/latest/docs/data-sources/module_source) (data source)
 
 <!-- markdownlint-disable MD013 -->
 ## Required Inputs
@@ -511,7 +506,7 @@ The following Modules are called:
 
 Source: Azure/avm-utl-interfaces/azure
 
-Version: 0.7.0
+Version: 0.9.0
 
 <!-- markdownlint-disable-next-line MD041 -->
 ## Data Collection
