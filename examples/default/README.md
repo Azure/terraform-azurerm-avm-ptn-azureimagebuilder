@@ -36,9 +36,6 @@ resource "azapi_resource" "resource_group" {
 
 module "test" {
   source = "../../"
-  providers = {
-    azapi = azapi
-  }
 
   compute_gallery_image_definition_name = "ubuntu-2404"
   compute_gallery_image_definitions = {
