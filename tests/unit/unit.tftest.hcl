@@ -610,6 +610,40 @@ run "optimize_vm_boot_enabled_sets_body" {
   }
 }
 
+run "managed_resource_tags_omitted_by_default" {
+  command = apply
+
+  assert {
+    condition     = !contains(keys(azapi_resource.image_template.body.properties), "managedResourceTags")
+    error_message = "managedResourceTags should be omitted by default."
+  }
+  providers = {
+    azapi  = azapi
+    random = random
+    time   = time
+  }
+}
+
+run "managed_resource_tags_are_serialized" {
+  command = apply
+
+  variables {
+    managed_resource_tags = {
+      "policy-exclude" = "true"
+    }
+  }
+
+  assert {
+    condition     = azapi_resource.image_template.body.properties.managedResourceTags["policy-exclude"] == "true"
+    error_message = "managed_resource_tags should be sent as managedResourceTags."
+  }
+  providers = {
+    azapi  = azapi
+    random = random
+    time   = time
+  }
+}
+
 run "gallery_rbac_uses_contributor" {
   command = apply
 
