@@ -14,6 +14,7 @@ It orchestrates the creation of a User-Assigned Managed Identity, Azure Compute 
 - Shared Image, managed image, and VHD distribution targets
 - VNet integration for private builds
 - Opt-in VM boot optimization for supported regions
+- Optional tags applied by Azure Image Builder to the resources it creates during builds
 - Opt-in build triggering with nonce-based re-trigger support and Shared Image Gallery version cleanup on destroy
 - Managed identity with BYO support and automatic RBAC wiring
 - Optional module-created or BYO staging resource group for build resources
@@ -348,6 +349,14 @@ object({
 ```
 
 Default: `{}`
+
+### <a name="input_managed_resource_tags"></a> [managed\_resource\_tags](#input\_managed\_resource\_tags)
+
+Description: (Optional) Tags that Azure Image Builder applies to the resource group and resources it creates during builds, such as the staging resource group and build VM. These are separate from `tags`, which apply only to the resources this module creates.
+
+Type: `map(string)`
+
+Default: `null`
 
 ### <a name="input_optimize_vm_boot"></a> [optimize\_vm\_boot](#input\_optimize\_vm\_boot)
 

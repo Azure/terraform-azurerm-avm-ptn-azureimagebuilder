@@ -62,6 +62,9 @@ module "test" {
   name             = "aib-${random_pet.name.id}"
   parent_id        = azapi_resource.resource_group.id
   enable_telemetry = var.enable_telemetry
+  managed_resource_tags = {
+    purpose = "avm-example"
+  }
 }
 ```
 

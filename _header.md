@@ -12,6 +12,7 @@ It orchestrates the creation of a User-Assigned Managed Identity, Azure Compute 
 - Shared Image, managed image, and VHD distribution targets
 - VNet integration for private builds
 - Opt-in VM boot optimization for supported regions
+- Optional tags applied by Azure Image Builder to the resources it creates during builds
 - Opt-in build triggering with nonce-based re-trigger support and Shared Image Gallery version cleanup on destroy
 - Managed identity with BYO support and automatic RBAC wiring
 - Optional module-created or BYO staging resource group for build resources

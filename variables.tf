@@ -339,6 +339,12 @@ DESCRIPTION
   nullable    = false
 }
 
+variable "managed_resource_tags" {
+  type        = map(string)
+  default     = null
+  description = "(Optional) Tags that Azure Image Builder applies to the resource group and resources it creates during builds, such as the staging resource group and build VM. These are separate from `tags`, which apply only to the resources this module creates."
+}
+
 variable "optimize_vm_boot" {
   type        = bool
   default     = false

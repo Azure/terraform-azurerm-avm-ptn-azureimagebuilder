@@ -185,6 +185,7 @@ resource "azapi_resource" "image_template" {
         buildTimeoutInMinutes = var.build_timeout_in_minutes
         optimize              = var.optimize_vm_boot ? { vmBoot = { state = "Enabled" } } : null
         stagingResourceGroup  = local.staging_resource_group_id
+        managedResourceTags   = var.managed_resource_tags
       } : k => v if v != null
     }
   }
